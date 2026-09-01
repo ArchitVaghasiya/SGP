@@ -43,8 +43,9 @@ class RestockEvaluationResponse(BaseModel):
 class InventoryUpdateRequest(BaseModel):
     store_id: int = Field(..., json_schema_extra={"example": 1})
     product_id: int = Field(..., json_schema_extra={"example": 1})
-    stock_change: float = Field(..., json_schema_extra={"example": 50.0}, description="Positive for stock receipt, negative for sales adjustment")
+    stock_change: Optional[float] = Field(None, json_schema_extra={"example": 50.0}, description="Positive for stock receipt, negative for sales adjustment")
     override_stock: Optional[float] = Field(None, json_schema_extra={"example": 150.0}, description="Directly set absolute stock quantity if provided")
+
 
 class InventoryUpdateResponse(BaseModel):
     store_id: int

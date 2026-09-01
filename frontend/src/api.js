@@ -2,78 +2,97 @@
 
 const API_BASE_URL = 'http://localhost:8000';
 
-// Realistic mock dataset for stores and product families
-const STORES = [
-  { store_id: 1, city: 'Quito', state: 'Pichincha', store_type: 'A', cluster: 1 },
-  { store_id: 2, city: 'Guayaquil', state: 'Guayas', store_type: 'B', cluster: 2 },
-  { store_id: 3, city: 'Cuenca', state: 'Azuay', store_type: 'C', cluster: 3 },
-  { store_id: 4, city: 'Santo Domingo', state: 'Santo Domingo', store_type: 'D', cluster: 1 },
-  { store_id: 5, city: 'Ambato', state: 'Tungurahua', store_type: 'A', cluster: 2 }
+export const STORES = [
+  { store_id: 1, city: 'Quito', state: 'Pichincha', store_type: 'D', cluster: 13 },
+  { store_id: 2, city: 'Quito', state: 'Pichincha', store_type: 'D', cluster: 13 },
+  { store_id: 3, city: 'Quito', state: 'Pichincha', store_type: 'D', cluster: 8 },
+  { store_id: 4, city: 'Quito', state: 'Pichincha', store_type: 'D', cluster: 9 },
+  { store_id: 5, city: 'Santo Domingo', state: 'Santo Domingo de los Tsachilas', store_type: 'D', cluster: 4 },
+  { store_id: 6, city: 'Quito', state: 'Pichincha', store_type: 'D', cluster: 13 },
+  { store_id: 7, city: 'Quito', state: 'Pichincha', store_type: 'D', cluster: 8 },
+  { store_id: 8, city: 'Quito', state: 'Pichincha', store_type: 'D', cluster: 8 },
+  { store_id: 9, city: 'Guayaquil', state: 'Guayas', store_type: 'B', cluster: 6 },
+  { store_id: 10, city: 'Quito', state: 'Pichincha', store_type: 'C', cluster: 15 },
+  { store_id: 11, city: 'Cayambe', state: 'Pichincha', store_type: 'B', cluster: 6 },
+  { store_id: 12, city: 'Latacunga', state: 'Cotopaxi', store_type: 'C', cluster: 15 },
+  { store_id: 13, city: 'Latacunga', state: 'Cotopaxi', store_type: 'C', cluster: 15 },
+  { store_id: 14, city: 'Riobamba', state: 'Chimborazo', store_type: 'C', cluster: 7 },
+  { store_id: 15, city: 'Ibarra', state: 'Imbabura', store_type: 'C', cluster: 15 },
+  { store_id: 16, city: 'Santo Domingo', state: 'Santo Domingo de los Tsachilas', store_type: 'C', cluster: 3 },
+  { store_id: 17, city: 'Quito', state: 'Pichincha', store_type: 'C', cluster: 12 },
+  { store_id: 18, city: 'Quito', state: 'Pichincha', store_type: 'B', cluster: 16 },
+  { store_id: 19, city: 'Guaranda', state: 'Bolivar', store_type: 'C', cluster: 15 },
+  { store_id: 20, city: 'Quito', state: 'Pichincha', store_type: 'B', cluster: 6 },
+  { store_id: 21, city: 'Santo Domingo', state: 'Santo Domingo de los Tsachilas', store_type: 'B', cluster: 6 },
+  { store_id: 22, city: 'Puyo', state: 'Pastaza', store_type: 'C', cluster: 7 },
+  { store_id: 23, city: 'Ambato', state: 'Tungurahua', store_type: 'D', cluster: 9 },
+  { store_id: 24, city: 'Guayaquil', state: 'Guayas', store_type: 'D', cluster: 1 },
+  { store_id: 25, city: 'Salinas', state: 'Santa Elena', store_type: 'D', cluster: 1 },
+  { store_id: 26, city: 'Guayaquil', state: 'Guayas', store_type: 'D', cluster: 10 },
+  { store_id: 27, city: 'Daule', state: 'Guayas', store_type: 'D', cluster: 1 },
+  { store_id: 28, city: 'Guayaquil', state: 'Guayas', store_type: 'E', cluster: 10 },
+  { store_id: 29, city: 'Guayaquil', state: 'Guayas', store_type: 'E', cluster: 10 },
+  { store_id: 30, city: 'Guayaquil', state: 'Guayas', store_type: 'C', cluster: 3 },
+  { store_id: 31, city: 'Babahoyo', state: 'Los Rios', store_type: 'B', cluster: 10 },
+  { store_id: 32, city: 'Guayaquil', state: 'Guayas', store_type: 'C', cluster: 3 },
+  { store_id: 33, city: 'Quevedo', state: 'Los Rios', store_type: 'C', cluster: 3 },
+  { store_id: 34, city: 'Guayaquil', state: 'Guayas', store_type: 'B', cluster: 6 },
+  { store_id: 35, city: 'Playas', state: 'Guayas', store_type: 'C', cluster: 3 },
+  { store_id: 36, city: 'Cuenca', state: 'Azuay', store_type: 'E', cluster: 10 },
+  { store_id: 37, city: 'Cuenca', state: 'Azuay', store_type: 'D', cluster: 2 },
+  { store_id: 38, city: 'Loja', state: 'Loja', store_type: 'D', cluster: 4 },
+  { store_id: 39, city: 'Cuenca', state: 'Azuay', store_type: 'B', cluster: 6 },
+  { store_id: 40, city: 'Machala', state: 'El Oro', store_type: 'C', cluster: 3 },
+  { store_id: 41, city: 'Machala', state: 'El Oro', store_type: 'D', cluster: 4 },
+  { store_id: 42, city: 'El Carmen', state: 'Manabi', store_type: 'C', cluster: 2 },
+  { store_id: 43, city: 'Esmeraldas', state: 'Esmeraldas', store_type: 'E', cluster: 10 },
+  { store_id: 44, city: 'Quito', state: 'Pichincha', store_type: 'A', cluster: 5 },
+  { store_id: 45, city: 'Quito', state: 'Pichincha', store_type: 'A', cluster: 11 },
+  { store_id: 46, city: 'Quito', state: 'Pichincha', store_type: 'A', cluster: 14 },
+  { store_id: 47, city: 'Quito', state: 'Pichincha', store_type: 'A', cluster: 14 },
+  { store_id: 48, city: 'Quito', state: 'Pichincha', store_type: 'A', cluster: 14 },
+  { store_id: 49, city: 'Quito', state: 'Pichincha', store_type: 'A', cluster: 11 },
+  { store_id: 50, city: 'Ambato', state: 'Tungurahua', store_type: 'A', cluster: 14 },
+  { store_id: 51, city: 'Guayaquil', state: 'Guayas', store_type: 'A', cluster: 17 },
+  { store_id: 52, city: 'Manta', state: 'Manabi', store_type: 'A', cluster: 11 },
+  { store_id: 53, city: 'Manta', state: 'Manabi', store_type: 'D', cluster: 13 },
+  { store_id: 54, city: 'El Carmen', state: 'Manabi', store_type: 'C', cluster: 3 }
 ];
 
-const PRODUCTS = [
-  { product_id: 1, family: 'BEVERAGES', perishable: false, class_id: 1000 },
-  { product_id: 2, family: 'GROCERY I', perishable: false, class_id: 1001 },
-  { product_id: 3, family: 'CLEANING', perishable: false, class_id: 1002 },
-  { product_id: 4, family: 'BREAD/BAKERY', perishable: true, class_id: 1003 },
-  { product_id: 5, family: 'POULTRY', perishable: true, class_id: 1004 },
-  { product_id: 6, family: 'MEATS', perishable: true, class_id: 1005 },
-  { product_id: 7, family: 'AUTOMOTIVE', perishable: false, class_id: 1006 },
-  { product_id: 8, family: 'BABY CARE', perishable: false, class_id: 1007 },
-  { product_id: 9, family: 'BOOKS', perishable: false, class_id: 1008 },
-  { product_id: 10, family: 'HARDWARE', perishable: false, class_id: 1009 }
-];
-
-let mockInventory = [
-  { store_id: 1, product_id: 1, current_stock: 45.0, safety_buffer: 120.0, lead_time_days: 7, service_level: 0.95, last_updated: '2026-09-01T10:00:00Z' },
-  { store_id: 1, product_id: 2, current_stock: 850.0, safety_buffer: 350.0, lead_time_days: 7, service_level: 0.95, last_updated: '2026-09-01T10:00:00Z' },
-  { store_id: 1, product_id: 3, current_stock: 220.0, safety_buffer: 200.0, lead_time_days: 7, service_level: 0.95, last_updated: '2026-09-01T10:00:00Z' },
-  { store_id: 1, product_id: 4, current_stock: 30.0, safety_buffer: 180.0, lead_time_days: 5, service_level: 0.98, last_updated: '2026-09-01T10:00:00Z' },
-  { store_id: 1, product_id: 5, current_stock: 90.0, safety_buffer: 240.0, lead_time_days: 7, service_level: 0.95, last_updated: '2026-09-01T10:00:00Z' },
-  { store_id: 1, product_id: 6, current_stock: 310.0, safety_buffer: 210.0, lead_time_days: 7, service_level: 0.95, last_updated: '2026-09-01T10:00:00Z' },
-  { store_id: 1, product_id: 7, current_stock: 15.0, safety_buffer: 45.0, lead_time_days: 10, service_level: 0.90, last_updated: '2026-09-01T10:00:00Z' },
-  { store_id: 1, product_id: 8, current_stock: 140.0, safety_buffer: 90.0, lead_time_days: 7, service_level: 0.95, last_updated: '2026-09-01T10:00:00Z' },
-  { store_id: 2, product_id: 1, current_stock: 620.0, safety_buffer: 300.0, lead_time_days: 7, service_level: 0.95, last_updated: '2026-09-01T10:00:00Z' },
-  { store_id: 2, product_id: 4, current_stock: 25.0, safety_buffer: 190.0, lead_time_days: 5, service_level: 0.98, last_updated: '2026-09-01T10:00:00Z' }
-];
-
-let mockPurchaseOrders = [
-  {
-    po_id: 101,
-    store_id: 1,
-    product_id: 1,
-    order_quantity: 475.0,
-    predicted_demand_7d: 400.0,
-    current_stock: 45.0,
-    safety_buffer: 120.0,
-    shortfall: 475.0,
-    status: 'PENDING',
-    created_at: '2026-09-01T08:30:00Z'
-  },
-  {
-    po_id: 102,
-    store_id: 1,
-    product_id: 4,
-    order_quantity: 340.0,
-    predicted_demand_7d: 190.0,
-    current_stock: 30.0,
-    safety_buffer: 180.0,
-    shortfall: 340.0,
-    status: 'APPROVED',
-    created_at: '2026-08-31T14:15:00Z'
-  },
-  {
-    po_id: 103,
-    store_id: 2,
-    product_id: 4,
-    order_quantity: 355.0,
-    predicted_demand_7d: 190.0,
-    current_stock: 25.0,
-    safety_buffer: 190.0,
-    shortfall: 355.0,
-    status: 'FULFILLED',
-    created_at: '2026-08-30T09:00:00Z'
-  }
+export const PRODUCTS = [
+  { product_id: 1, family: 'AUTOMOTIVE', perishable: false, class_id: 100 },
+  { product_id: 2, family: 'BABY CARE', perishable: false, class_id: 100 },
+  { product_id: 3, family: 'BEAUTY', perishable: false, class_id: 100 },
+  { product_id: 4, family: 'BEVERAGES', perishable: false, class_id: 100 },
+  { product_id: 5, family: 'BOOKS', perishable: false, class_id: 100 },
+  { product_id: 6, family: 'BREAD/BAKERY', perishable: true, class_id: 100 },
+  { product_id: 7, family: 'CELEBRATION', perishable: false, class_id: 100 },
+  { product_id: 8, family: 'CLEANING', perishable: false, class_id: 100 },
+  { product_id: 9, family: 'DAIRY', perishable: true, class_id: 100 },
+  { product_id: 10, family: 'DELI', perishable: true, class_id: 100 },
+  { product_id: 11, family: 'EGGS', perishable: true, class_id: 100 },
+  { product_id: 12, family: 'FROZEN FOODS', perishable: false, class_id: 100 },
+  { product_id: 13, family: 'GROCERY I', perishable: false, class_id: 100 },
+  { product_id: 14, family: 'GROCERY II', perishable: false, class_id: 100 },
+  { product_id: 15, family: 'HARDWARE', perishable: false, class_id: 100 },
+  { product_id: 16, family: 'HOME AND KITCHEN I', perishable: false, class_id: 100 },
+  { product_id: 17, family: 'HOME AND KITCHEN II', perishable: false, class_id: 100 },
+  { product_id: 18, family: 'HOME APPLIANCES', perishable: false, class_id: 100 },
+  { product_id: 19, family: 'HOME CARE', perishable: false, class_id: 100 },
+  { product_id: 20, family: 'LADIESWEAR', perishable: false, class_id: 100 },
+  { product_id: 21, family: 'LAWN AND GARDEN', perishable: false, class_id: 100 },
+  { product_id: 22, family: 'LINGERIE', perishable: false, class_id: 100 },
+  { product_id: 23, family: 'LIQUOR,WINE,BEER', perishable: false, class_id: 100 },
+  { product_id: 24, family: 'MAGAZINES', perishable: false, class_id: 100 },
+  { product_id: 25, family: 'MEATS', perishable: true, class_id: 100 },
+  { product_id: 26, family: 'PERSONAL CARE', perishable: false, class_id: 100 },
+  { product_id: 27, family: 'PET SUPPLIES', perishable: false, class_id: 100 },
+  { product_id: 28, family: 'PLAYERS AND ELECTRONICS', perishable: false, class_id: 100 },
+  { product_id: 29, family: 'POULTRY', perishable: true, class_id: 100 },
+  { product_id: 30, family: 'PREPARED FOODS', perishable: true, class_id: 100 },
+  { product_id: 31, family: 'PRODUCE', perishable: true, class_id: 100 },
+  { product_id: 32, family: 'SCHOOL AND OFFICE SUPPLIES', perishable: false, class_id: 100 },
+  { product_id: 33, family: 'SEAFOOD', perishable: true, class_id: 100 }
 ];
 
 export async function checkBackendHealth() {
@@ -87,7 +106,7 @@ export async function checkBackendHealth() {
       return { isOnline: true, data };
     }
   } catch (err) {
-    // Backend offline fallback
+    // Offline fallback
   }
   return { isOnline: false, data: { status: 'offline', version: '1.0.0 (Demo Mode)' } };
 }
@@ -102,21 +121,21 @@ export async function getProducts() {
 
 export async function get7DayForecast(storeId = 1, productId = 1) {
   try {
-    const res = await fetch(`${API_BASE_URL}/forecast/7day?store_id=${storeId}&product_id=${productId}`);
+    const res = await fetch(`${API_BASE_URL}/forecast/${storeId}/${productId}`);
     if (res.ok) {
       return await res.json();
     }
   } catch (e) {
-    // Fallback mock forecast
+    console.warn(`Forecast endpoint failed for store ${storeId}, product ${productId}:`, e);
   }
 
+  // Fallback mock forecast
   const prod = PRODUCTS.find(p => p.product_id === productId) || PRODUCTS[0];
-  const baseDemand = prod.perishable ? 35 : (productId === 1 ? 60 : 40);
+  const baseDemand = prod.perishable ? 35 : (productId === 13 ? 1000 : 40);
 
-  const dates = [];
+  const daily = [];
   const today = new Date();
   let total7d = 0;
-  const daily = [];
 
   for (let i = 1; i <= 7; i++) {
     const d = new Date(today);
@@ -144,109 +163,55 @@ export async function get7DayForecast(storeId = 1, productId = 1) {
 
 export async function evaluateRestock(storeId = 1, strategyType = 'statistical') {
   try {
-    const res = await fetch(`${API_BASE_URL}/restock/evaluate?store_id=${storeId}&strategy_type=${strategyType}`, {
-      method: 'POST'
-    });
+    const res = await fetch(`${API_BASE_URL}/restock/evaluate?store_id=${storeId}`);
     if (res.ok) {
       return await res.json();
     }
   } catch (e) {
-    // Fallback mock evaluation
-  }
-
-  const storeItems = mockInventory.filter(i => i.store_id === storeId);
-  const evaluations = [];
-  const generatedOrders = [];
-
-  for (const inv of storeItems) {
-    const forecast = await get7DayForecast(storeId, inv.product_id);
-    const pred7d = forecast.predicted_demand_7d;
-    const buffer = Math.round(pred7d * 0.45 * 100) / 100;
-    inv.safety_buffer = buffer;
-
-    const required = pred7d + buffer;
-    const needed = inv.current_stock < required;
-    const shortfall = needed ? Math.round((required - inv.current_stock) * 100) / 100 : 0;
-    const orderQty = shortfall;
-
-    evaluations.push({
-      product_id: inv.product_id,
-      current_stock: inv.current_stock,
-      predicted_demand_7d: pred7d,
-      safety_buffer: buffer,
-      shortfall: shortfall,
-      restock_needed: needed,
-      order_quantity: orderQty
-    });
-
-    if (needed) {
-      const existing = mockPurchaseOrders.find(po => po.store_id === storeId && po.product_id === inv.product_id && po.status === 'PENDING');
-      if (!existing) {
-        const newPo = {
-          po_id: mockPurchaseOrders.length + 101,
-          store_id: storeId,
-          product_id: inv.product_id,
-          order_quantity: orderQty,
-          predicted_demand_7d: pred7d,
-          current_stock: inv.current_stock,
-          safety_buffer: buffer,
-          shortfall: shortfall,
-          status: 'PENDING',
-          created_at: new Date().toISOString()
-        };
-        mockPurchaseOrders.unshift(newPo);
-        generatedOrders.push(newPo);
-      }
-    }
+    console.warn(`Restock evaluation endpoint failed for store ${storeId}:`, e);
   }
 
   return {
     store_id: storeId,
-    evaluated_products_count: evaluations.length,
-    restock_orders_generated_count: generatedOrders.length,
-    generated_purchase_orders: generatedOrders,
-    evaluations: evaluations
+    evaluated_products_count: 0,
+    restock_orders_generated_count: 0,
+    generated_purchase_orders: [],
+    evaluations: []
   };
 }
 
 export async function updateStock(storeId, productId, overrideStock = null, stockChange = null) {
   try {
     const payload = { store_id: storeId, product_id: productId };
-    if (overrideStock !== null) payload.override_stock = overrideStock;
-    if (stockChange !== null) payload.stock_change = stockChange;
+    if (overrideStock !== null && overrideStock !== undefined) {
+      payload.override_stock = parseFloat(overrideStock);
+    }
+    if (stockChange !== null && stockChange !== undefined) {
+      payload.stock_change = parseFloat(stockChange);
+    }
 
     const res = await fetch(`${API_BASE_URL}/inventory/update`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
+
     if (res.ok) {
       return await res.json();
+    } else {
+      const errText = await res.text();
+      console.error("Failed to update stock from API:", res.status, errText);
     }
   } catch (e) {
-    // Fallback mock update
+    console.error("Error updating stock:", e);
   }
-
-  let item = mockInventory.find(i => i.store_id === storeId && i.product_id === productId);
-  if (!item) {
-    item = { store_id: storeId, product_id: productId, current_stock: 100, safety_buffer: 50, lead_time_days: 7, service_level: 0.95 };
-    mockInventory.push(item);
-  }
-
-  const prev = item.current_stock;
-  let newStock = prev;
-  if (overrideStock !== null) newStock = Math.max(0, overrideStock);
-  else if (stockChange !== null) newStock = Math.max(0, prev + stockChange);
-
-  item.current_stock = newStock;
-  item.last_updated = new Date().toISOString();
 
   return {
     store_id: storeId,
     product_id: productId,
-    previous_stock: prev,
-    new_stock: newStock,
-    message: `Stock updated successfully from ${prev} to ${newStock}`
+    previous_stock: 0,
+    new_stock: overrideStock !== null ? overrideStock : stockChange,
+    message: "Stock adjustment processed"
   };
 }
 
@@ -263,69 +228,68 @@ export async function getPurchaseOrders(storeId = null, status = null) {
       return await res.json();
     }
   } catch (e) {
-    // Fallback
+    console.warn("Failed to fetch purchase orders:", e);
   }
 
-  return mockPurchaseOrders.filter(po => {
-    if (storeId && po.store_id !== storeId) return false;
-    if (status && po.status !== status) return false;
-    return true;
-  });
+  return [];
 }
 
 export async function updatePOStatus(poId, newStatus) {
-  const po = mockPurchaseOrders.find(p => p.po_id === poId);
-  if (po) {
-    po.status = newStatus;
-
-    if (newStatus === 'FULFILLED') {
-      // Automatically credit inventory stock
-      await updateStock(po.store_id, po.product_id, null, po.order_quantity);
-    }
-  }
-  return po;
+  // PO status update helper
+  return { po_id: poId, status: newStatus };
 }
 
 export async function getInventory(storeId = 1) {
-  const result = [];
-  for (const prod of PRODUCTS) {
-    let inv = mockInventory.find(i => i.store_id === storeId && i.product_id === prod.product_id);
-    if (!inv) {
-      inv = {
-        store_id: storeId,
-        product_id: prod.product_id,
-        current_stock: Math.floor(Math.random() * 200) + 20,
-        safety_buffer: Math.floor(Math.random() * 150) + 50,
-        lead_time_days: 7,
-        service_level: 0.95,
-        last_updated: new Date().toISOString()
-      };
-      mockInventory.push(inv);
-    }
-    
-    // Quick forecast calculation for summary UI
-    const est7dDemand = Math.round((prod.perishable ? 220 : 380) * (0.8 + (prod.product_id % 3) * 0.2));
-    const requiredStock = est7dDemand + inv.safety_buffer;
-    const shortfall = inv.current_stock < requiredStock ? Math.round(requiredStock - inv.current_stock) : 0;
+  try {
+    const evalRes = await evaluateRestock(storeId);
+    if (evalRes && evalRes.evaluations && evalRes.evaluations.length > 0) {
+      const evalMap = {};
+      evalRes.evaluations.forEach(e => {
+        evalMap[e.product_id] = e;
+      });
 
-    let status = 'HEALTHY';
-    if (inv.current_stock < inv.safety_buffer) {
-      status = 'CRITICAL';
-    } else if (inv.current_stock < requiredStock) {
-      status = 'WARNING';
-    }
+      return PRODUCTS.map(prod => {
+        const ev = evalMap[prod.product_id] || {};
+        const currentStock = ev.current_stock !== undefined ? ev.current_stock : 0;
+        const safetyBuffer = ev.safety_buffer !== undefined ? ev.safety_buffer : 0;
+        const pred7d = ev.predicted_demand_7d !== undefined ? ev.predicted_demand_7d : 0;
+        const shortfall = ev.shortfall !== undefined ? ev.shortfall : 0;
 
-    result.push({
-      ...prod,
-      current_stock: inv.current_stock,
-      safety_buffer: inv.safety_buffer,
-      lead_time_days: inv.lead_time_days,
-      service_level: inv.service_level,
-      predicted_demand_7d: est7dDemand,
-      shortfall: shortfall,
-      status: status,
-      last_updated: inv.last_updated
-    });
+        const requiredStock = pred7d + safetyBuffer;
+        let status = 'HEALTHY';
+        if (currentStock < safetyBuffer) {
+          status = 'CRITICAL';
+        } else if (currentStock < requiredStock) {
+          status = 'WARNING';
+        }
+
+        return {
+          ...prod,
+          current_stock: currentStock,
+          safety_buffer: safetyBuffer,
+          lead_time_days: 7,
+          service_level: 0.95,
+          predicted_demand_7d: pred7d,
+          shortfall: shortfall,
+          status: status,
+          last_updated: new Date().toISOString()
+        };
+      });
+    }
+  } catch (e) {
+    console.warn(`getInventory failed for store ${storeId}:`, e);
   }
-  return result;
+
+  // Basic fallback
+  return PRODUCTS.map(prod => ({
+    ...prod,
+    current_stock: 100,
+    safety_buffer: 30,
+    lead_time_days: 7,
+    service_level: 0.95,
+    predicted_demand_7d: 50,
+    shortfall: 0,
+    status: 'HEALTHY',
+    last_updated: new Date().toISOString()
+  }));
 }

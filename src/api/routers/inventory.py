@@ -29,9 +29,13 @@ def update_inventory_stock(
     if payload.override_stock is not None:
         new_stock = max(0.0, float(payload.override_stock))
         msg = f"Stock explicitly overridden from {prev_stock} to {new_stock}"
-    else:
+    elif payload.stock_change is not None:
         new_stock = max(0.0, prev_stock + float(payload.stock_change))
         msg = f"Stock adjusted by {payload.stock_change:+g} from {prev_stock} to {new_stock}"
+    else:
+        new_stock = prev_stock
+        msg = "No stock adjustment specified"
+
 
     inv.current_stock = new_stock
     inv.last_updated = datetime.now(timezone.utc)
