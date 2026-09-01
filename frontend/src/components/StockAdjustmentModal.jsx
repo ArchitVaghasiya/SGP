@@ -10,10 +10,11 @@ export function StockAdjustmentModal({ product, onClose, onSave }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     const numericVal = parseFloat(val) || 0;
+    const storeId = product.store_id || 1;
     if (mode === 'add') {
-      onSave(product.store_id, product.product_id, null, numericVal);
+      onSave(storeId, product.product_id, null, numericVal);
     } else {
-      onSave(product.store_id, product.product_id, numericVal, null);
+      onSave(storeId, product.product_id, numericVal, null);
     }
     onClose();
   };

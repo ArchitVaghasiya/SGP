@@ -87,7 +87,6 @@ export default function App() {
       const res = await evaluateRestock(selectedStore, 'statistical');
       setEvaluationResult(res);
 
-      // Refresh inventory and POs
       const updatedInv = await getInventory(selectedStore);
       setInventory(updatedInv);
 
@@ -102,11 +101,19 @@ export default function App() {
 
   // Adjust stock level
   const handleSaveStockAdjustment = async (storeId, productId, overrideStock, stockChange) => {
-    await updateStock(storeId, productId, overrideStock, stockChange);
+    const targetStoreId = storeId || selectedStore;
+    await updateStock(targetStoreId, productId, overrideStock, stockChange);
 
-    // Refresh inventory matrix
-    const updatedInv = await getInventory(selectedStore);
+    const updatedInv = await getInventory(targetStoreId);
     setInventory(updatedInv);
+
+    const updatedPOs = await getPurchaseOrders(targetStoreId);
+    setPurchaseOrders(updatedPOs);
+
+    if (selectedProductId === productId) {
+      const fc = await get7DayForecast(targetStoreId, productId);
+      setForecast(fc);
+    }
   };
 
   // Update PO status (Approve / Fulfill)

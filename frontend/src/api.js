@@ -182,7 +182,9 @@ export async function evaluateRestock(storeId = 1, strategyType = 'statistical')
 
 export async function updateStock(storeId, productId, overrideStock = null, stockChange = null) {
   try {
-    const payload = { store_id: storeId, product_id: productId };
+    const sId = parseInt(storeId) || 1;
+    const pId = parseInt(productId) || 1;
+    const payload = { store_id: sId, product_id: pId };
     if (overrideStock !== null && overrideStock !== undefined) {
       payload.override_stock = parseFloat(overrideStock);
     }
@@ -235,7 +237,6 @@ export async function getPurchaseOrders(storeId = null, status = null) {
 }
 
 export async function updatePOStatus(poId, newStatus) {
-  // PO status update helper
   return { po_id: poId, status: newStatus };
 }
 
@@ -265,6 +266,7 @@ export async function getInventory(storeId = 1) {
 
         return {
           ...prod,
+          store_id: parseInt(storeId),
           current_stock: currentStock,
           safety_buffer: safetyBuffer,
           lead_time_days: 7,
@@ -283,6 +285,7 @@ export async function getInventory(storeId = 1) {
   // Basic fallback
   return PRODUCTS.map(prod => ({
     ...prod,
+    store_id: parseInt(storeId),
     current_stock: 100,
     safety_buffer: 30,
     lead_time_days: 7,
