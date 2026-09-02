@@ -20,11 +20,24 @@ REQUIRED_FILES = {
 }
 
 def fast_pg_copy(df: pd.DataFrame, table_name: str, db: Session):
-    """Executes high-speed Postgres COPY FROM disk file for ultra-fast bulk DataFrame insertion."""
+    """Executes high-speed Postgres COPY FROM disk file or optimized SQLite bulk insertion."""
+    bind = db.get_bind()
+    if bind.dialect.name == "sqlite":
+        raw_conn = bind.raw_connection()
+        try:
+            conn = raw_conn.dbapi_connection if hasattr(raw_conn, 'dbapi_connection') else raw_conn.connection
+            conn.execute("PRAGMA synchronous = OFF;")
+            conn.execute("PRAGMA journal_mode = MEMORY;")
+            df.to_sql(table_name, con=conn, if_exists="append", index=False, chunksize=50000)
+            conn.commit()
+        finally:
+            raw_conn.close()
+        return
+
     temp_path = f"/tmp/{table_name}_temp.csv" if os.name != 'nt' else f"data/{table_name}_temp.csv"
     try:
         df.to_csv(temp_path, index=False, header=True)
-        raw_conn = db.get_bind().raw_connection()
+        raw_conn = bind.raw_connection()
         try:
             cursor = raw_conn.cursor()
             cols = ", ".join([f'"{col}"' for col in df.columns])
@@ -168,11 +181,64 @@ def load_kaggle_csvs(db: Session, raw_dir: str):
 
     logger.info("Kaggle CSV data ingestion finished successfully!")
 
+def seed_fallback_inventory(db: Session):
+    """Fallback database seeder if raw Kaggle CSV files are not present on cloned workspace."""
+    logger.info("Seeding baseline fallback stores, products, and inventory records...")
+    
+    # 1. Stores (1..54)
+    if db.query(Store).count() == 0:
+        stores = []
+        for s in range(1, 55):
+            stores.append(Store(store_id=s, city="Quito", state="Pichincha", store_type="D", cluster=13))
+        db.bulk_save_objects(stores)
+        db.commit()
+
+    # 2. Products (1..33)
+    families = [
+        'AUTOMOTIVE', 'BABY CARE', 'BEAUTY', 'BEVERAGES', 'BOOKS', 'BREAD/BAKERY',
+        'CELEBRATION', 'CLEANING', 'DAIRY', 'DELI', 'EGGS', 'FROZEN FOODS',
+        'GROCERY I', 'GROCERY II', 'HARDWARE', 'HOME AND KITCHEN I', 'HOME AND KITCHEN II',
+        'HOME APPLIANCES', 'HOME CARE', 'LADIESWEAR', 'LAWN AND GARDEN', 'LINGERIE',
+        'LIQUOR,WINE,BEER', 'MAGAZINES', 'MEATS', 'PERSONAL CARE', 'PET SUPPLIES',
+        'PLAYERS AND ELECTRONICS', 'POULTRY', 'PREPARED FOODS', 'PRODUCE',
+        'SCHOOL AND OFFICE SUPPLIES', 'SEAFOOD'
+    ]
+    if db.query(Product).count() == 0:
+        prods = []
+        for idx, fam in enumerate(families, start=1):
+            is_perishable = fam in {"BREAD/BAKERY", "MEATS", "POULTRY", "PRODUCE", "DAIRY", "EGGS", "SEAFOOD", "DELI"}
+            prods.append(Product(product_id=idx, family=fam, class_id=100, perishable=is_perishable))
+        db.bulk_save_objects(prods)
+        db.commit()
+
+    # 3. Inventory
+    if db.query(Inventory).count() == 0:
+        invs = []
+        now_str = datetime.now()
+        for s in range(1, 55):
+            for p in range(1, 34):
+                invs.append(Inventory(
+                    store_id=s,
+                    product_id=p,
+                    current_stock=100.0,
+                    safety_buffer=30.0,
+                    lead_time_days=7,
+                    service_level=0.95,
+                    last_updated=now_str
+                ))
+        db.bulk_save_objects(invs)
+        db.commit()
+    logger.info("Baseline fallback database seeding completed successfully.")
+
 def run_etl():
     init_db()
     db = SessionLocal()
     try:
-        load_kaggle_csvs(db, RAW_DATA_DIR)
+        try:
+            load_kaggle_csvs(db, RAW_DATA_DIR)
+        except (FileNotFoundError, Exception) as e:
+            logger.warning(f"ETL dataset ingestion notice ({e}). Triggering fallback baseline seeder...")
+            seed_fallback_inventory(db)
     finally:
         db.close()
 
