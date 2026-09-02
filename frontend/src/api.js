@@ -129,13 +129,23 @@ export async function get7DayForecast(storeId = 1, productId = 1) {
     console.warn(`Forecast endpoint failed for store ${storeId}, product ${productId}:`, e);
   }
 
-  // Fallback mock forecast
+  // Fallback mock forecast with dynamic store stock mapping
   const prod = PRODUCTS.find(p => p.product_id === productId) || PRODUCTS[0];
   const baseDemand = prod.perishable ? 35 : (productId === 13 ? 1000 : 40);
+
+  // Dynamic stock levels per product matching matrix
+  let stockOnHand = 100;
+  if (productId === 1) stockOnHand = 300;
+  else if (productId === 2) stockOnHand = 60;
+  else if (productId === 3) stockOnHand = 33.23;
+  else if (productId === 4) stockOnHand = 20387.74;
+  else if (productId === 5) stockOnHand = 60;
+  else if (productId === 6) stockOnHand = 3170.28;
 
   const daily = [];
   const today = new Date();
   let total7d = 0;
+  let cumSales = 0;
 
   for (let i = 1; i <= 7; i++) {
     const d = new Date(today);
@@ -145,16 +155,21 @@ export async function get7DayForecast(storeId = 1, productId = 1) {
     const noise = 0.9 + Math.random() * 0.2;
     const sales = Math.round(baseDemand * factor * noise * 10) / 10;
     total7d += sales;
+    cumSales += sales;
 
     daily.push({
       date: d.toISOString().split('T')[0],
-      predicted_sales: sales
+      predicted_sales: sales,
+      projected_stock_remaining: Math.max(0, Math.round((stockOnHand - cumSales) * 10) / 10),
+      is_stockout_risk: Math.max(0, stockOnHand - cumSales) < 21.76
     });
   }
 
   return {
     store_id: storeId,
     product_id: productId,
+    current_stock: stockOnHand,
+    safety_buffer: 21.76,
     predicted_demand_7d: Math.round(total7d * 100) / 100,
     daily_forecast: daily,
     model_version: 'v1.0.0 (LightGBM)'

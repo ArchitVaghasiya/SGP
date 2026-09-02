@@ -126,7 +126,7 @@ export default function App() {
     setInventory(updatedInv);
   };
 
-  const selectedProductObj = products.find(p => p.product_id === selectedProductId) || products[0];
+  const selectedProductObj = inventory.find(p => p.product_id === selectedProductId) || products.find(p => p.product_id === selectedProductId) || products[0];
 
   return (
     <div style={{ minHeight: '100vh', paddingBottom: '3rem' }}>

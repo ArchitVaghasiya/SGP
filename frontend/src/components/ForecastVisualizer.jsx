@@ -12,8 +12,13 @@ export function ForecastVisualizer({ forecast, product }) {
     );
   }
 
-  const currentStock = forecast.current_stock !== undefined ? forecast.current_stock : (product.current_stock || 100);
-  const safetyBuffer = forecast.safety_buffer !== undefined ? forecast.safety_buffer : (product.safety_buffer || 30);
+  const currentStock = (product && product.current_stock !== undefined && product.current_stock !== null)
+    ? product.current_stock
+    : (forecast && forecast.current_stock !== undefined && forecast.current_stock !== null ? forecast.current_stock : 100);
+
+  const safetyBuffer = (product && product.safety_buffer !== undefined && product.safety_buffer !== null)
+    ? product.safety_buffer
+    : (forecast && forecast.safety_buffer !== undefined && forecast.safety_buffer !== null ? forecast.safety_buffer : 30);
   const totalDemand = forecast.predicted_demand_7d || 0;
   const avgRunRate = Math.round((totalDemand / 7) * 10) / 10;
 
