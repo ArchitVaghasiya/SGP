@@ -6,7 +6,7 @@ import pandas as pd
 import numpy as np
 from sqlalchemy.orm import Session
 from src.config import settings
-from src.db.models import SalesHistory, Store, Product, HolidayEvent, OilPrice
+from src.db.models import SalesHistory, Store, Product, HolidayEvent, OilPrice, Inventory
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ML-Predictor")
@@ -52,7 +52,7 @@ class DemandPredictor:
     def predict_next_7_days(self, db: Session, store_id: int, product_id: int) -> dict:
         """
         Forecasts 7-day cumulative demand for a given store_id and product_id.
-        Returns total 7-day predicted demand, daily breakdown, and model metadata.
+        Returns total 7-day predicted demand, daily breakdown with seasonality, and stock depletion projection.
         """
         store = db.query(Store).filter_by(store_id=store_id).first()
         product = db.query(Product).filter_by(product_id=product_id).first()
@@ -136,19 +136,49 @@ class DemandPredictor:
             # Fallback 7-day forecast sum
             pred_7d = round(float(np.mean(sales_series[-7:])) * 7.0, 2)
 
-        # Generate 7 daily breakdown items
-        daily_avg = round(pred_7d / 7.0, 2)
-        daily_predictions = []
+        # Query current stock & safety buffer from Inventory table
+        inv = db.query(Inventory).filter_by(store_id=store_id, product_id=product_id).first()
+        current_stock = float(inv.current_stock) if inv else 100.0
+        safety_buffer = float(inv.safety_buffer) if inv else 30.0
+
+        # Day-of-week seasonality multipliers (Mon..Sun standard retail store pattern)
+        dow_weights = {0: 0.85, 1: 0.88, 2: 0.92, 3: 0.95, 4: 1.18, 5: 1.35, 6: 1.22}
+        is_perishable = bool(product.perishable)
+
+        today = datetime.now().date()
+        raw_weights = []
         for d in range(1, 8):
-            d_date = (datetime.now().date() + timedelta(days=d)).isoformat()
+            target_dt = today + timedelta(days=d)
+            w = dow_weights[target_dt.weekday()]
+            if is_perishable and target_dt.weekday() in [5, 6]:
+                w *= 1.15
+            raw_weights.append(w)
+            
+        weight_sum = sum(raw_weights)
+        daily_predictions = []
+        cum_sales = 0.0
+
+        for d in range(1, 8):
+            target_dt = today + timedelta(days=d)
+            w = raw_weights[d - 1]
+            daily_sales = round(pred_7d * (w / weight_sum), 2)
+            
+            cum_sales += daily_sales
+            running_stock = max(0.0, round(current_stock - cum_sales, 2))
+            is_risk = running_stock < safety_buffer
+
             daily_predictions.append({
-                'date': d_date,
-                'predicted_sales': daily_avg
+                'date': target_dt.isoformat(),
+                'predicted_sales': daily_sales,
+                'projected_stock_remaining': running_stock,
+                'is_stockout_risk': is_risk
             })
 
         return {
             'store_id': store_id,
             'product_id': product_id,
+            'current_stock': current_stock,
+            'safety_buffer': safety_buffer,
             'predicted_demand_7d': pred_7d,
             'daily_forecast': daily_predictions,
             'model_version': self.version
@@ -156,3 +186,4 @@ class DemandPredictor:
 
 # Global predictor instance
 predictor = DemandPredictor()
+

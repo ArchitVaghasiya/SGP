@@ -6,10 +6,14 @@ from pydantic import BaseModel, Field
 class DailyForecastItem(BaseModel):
     date: str
     predicted_sales: float
+    projected_stock_remaining: Optional[float] = None
+    is_stockout_risk: Optional[bool] = False
 
 class ForecastResponse(BaseModel):
     store_id: int
     product_id: int
+    current_stock: Optional[float] = 0.0
+    safety_buffer: Optional[float] = 0.0
     predicted_demand_7d: float
     daily_forecast: List[DailyForecastItem]
     model_version: str

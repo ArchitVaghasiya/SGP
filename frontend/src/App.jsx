@@ -110,10 +110,9 @@ export default function App() {
     const updatedPOs = await getPurchaseOrders(targetStoreId);
     setPurchaseOrders(updatedPOs);
 
-    if (selectedProductId === productId) {
-      const fc = await get7DayForecast(targetStoreId, productId);
-      setForecast(fc);
-    }
+    setSelectedProductId(productId);
+    const fc = await get7DayForecast(targetStoreId, productId);
+    setForecast(fc);
   };
 
   // Update PO status (Approve / Fulfill)
