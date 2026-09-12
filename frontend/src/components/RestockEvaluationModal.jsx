@@ -4,7 +4,7 @@ import { X, CheckCircle2, AlertTriangle, ShieldCheck } from 'lucide-react';
 export function RestockEvaluationModal({ evaluationResult, onClose }) {
   if (!evaluationResult) return null;
 
-  const { store_id, evaluated_products_count, restock_orders_generated_count, generated_purchase_orders, evaluations } = evaluationResult;
+  const { store_id, evaluated_products_count, restock_orders_generated_count, evaluations } = evaluationResult;
 
   return (
     <div className="modal-overlay" onClick={onClose}>

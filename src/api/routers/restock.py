@@ -5,7 +5,7 @@ from src.db.session import get_db
 from src.db.models import PurchaseOrder, Store
 from src.ml.predict import predictor
 from src.services.restock import evaluate_store_restock
-from src.api.schemas import RestockEvaluationResponse, PurchaseOrderSchema
+from src.api.schemas import RestockEvaluationResponse, PurchaseOrderSchema, POStatusUpdateRequest
 
 router = APIRouter(prefix="/restock", tags=["Restock & Orders"])
 
@@ -58,3 +58,39 @@ def list_purchase_orders(
             created_at=o.created_at.isoformat() if o.created_at else None
         ))
     return result
+
+@router.put("/orders/{po_id}/status", response_model=PurchaseOrderSchema)
+def update_po_status(
+    po_id: int,
+    payload: POStatusUpdateRequest,
+    db: Session = Depends(get_db)
+):
+    """Updates the status of a purchase order and handles inventory receiving if fulfilled."""
+    from src.db.models import Inventory
+    po = db.query(PurchaseOrder).filter_by(po_id=po_id).first()
+    if not po:
+        raise HTTPException(status_code=404, detail="Purchase Order not found")
+        
+    new_status = payload.status.upper()
+    valid_statuses = {"PENDING", "APPROVED", "FULFILLED", "CANCELLED"}
+    if new_status not in valid_statuses:
+        raise HTTPException(status_code=400, detail="Invalid status")
+        
+    if new_status == "FULFILLED" and po.status != "FULFILLED":
+        inv = db.query(Inventory).filter_by(store_id=po.store_id, product_id=po.product_id).first()
+        if inv:
+            inv.current_stock = float(inv.current_stock) + float(po.order_quantity)
+            
+    po.status = new_status
+    db.commit()
+    db.refresh(po)
+    
+    return PurchaseOrderSchema(
+        po_id=po.po_id,
+        store_id=po.store_id,
+        product_id=po.product_id,
+        order_quantity=float(po.order_quantity),
+        status=po.status,
+        created_at=po.created_at.isoformat() if po.created_at else None
+    )
+

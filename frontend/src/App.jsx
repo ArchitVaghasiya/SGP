@@ -6,6 +6,10 @@ import { ForecastVisualizer } from './components/ForecastVisualizer';
 import { PurchaseOrdersManager } from './components/PurchaseOrdersManager';
 import { StockAdjustmentModal } from './components/StockAdjustmentModal';
 import { RestockEvaluationModal } from './components/RestockEvaluationModal';
+import { SplashScreen } from './components/SplashScreen';
+import Dock from './components/Dock';
+import { GlobalShortfallsChart } from './components/GlobalShortfallsChart';
+import { BarChart2, RefreshCw, Sun, Moon, Package } from 'lucide-react';
 
 import {
   checkBackendHealth,
@@ -25,8 +29,10 @@ export default function App() {
   const [selectedStore, setSelectedStore] = useState(1);
   const [inventory, setInventory] = useState([]);
   const [purchaseOrders, setPurchaseOrders] = useState([]);
-  const [selectedProductId, setSelectedProductId] = useState(1);
+  const [selectedProductId, setSelectedProductId] = useState(null); // Default to null for global view
   const [forecast, setForecast] = useState(null);
+  
+  const [showSplash, setShowSplash] = useState(true);
   
   const [theme, setTheme] = useState('dark');
   const [backendStatus, setBackendStatus] = useState({ isOnline: false });
@@ -64,10 +70,9 @@ export default function App() {
       setPurchaseOrders(poData);
 
       if (invData.length > 0) {
-        const firstProdId = invData[0].product_id;
-        setSelectedProductId(firstProdId);
-        const fc = await get7DayForecast(selectedStore, firstProdId);
-        setForecast(fc);
+        // Do NOT select the first product automatically to show global view first
+        setSelectedProductId(null);
+        setForecast(null);
       }
     }
     loadStoreData();
@@ -128,6 +133,33 @@ export default function App() {
 
   const selectedProductObj = inventory.find(p => p.product_id === selectedProductId) || products.find(p => p.product_id === selectedProductId) || products[0];
 
+  const dockItems = [
+    { 
+      icon: <BarChart2 size={22} />, 
+      label: 'Global Shortfalls', 
+      onClick: () => { setSelectedProductId(null); setForecast(null); }
+    },
+    { 
+      icon: <RefreshCw size={22} className={isEvaluating ? "animate-spin" : ""} />, 
+      label: 'Run AI Engine', 
+      onClick: handleRunRestockEngine 
+    },
+    { 
+      icon: <Package size={22} />, 
+      label: 'Purchase Orders', 
+      onClick: () => { window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }); } 
+    },
+    { 
+      icon: theme === 'dark' ? <Sun size={22} /> : <Moon size={22} />, 
+      label: 'Toggle Theme', 
+      onClick: () => setTheme(theme === 'dark' ? 'light' : 'dark') 
+    },
+  ];
+
+  if (showSplash) {
+    return <SplashScreen onComplete={() => setShowSplash(false)} />;
+  }
+
   return (
     <div style={{ minHeight: '100vh', paddingBottom: '3rem' }}>
       {/* Header Bar */}
@@ -135,11 +167,7 @@ export default function App() {
         selectedStore={selectedStore}
         setSelectedStore={setSelectedStore}
         stores={stores}
-        onRunRestock={handleRunRestockEngine}
-        isEvaluating={isEvaluating}
         backendStatus={backendStatus}
-        theme={theme}
-        setTheme={setTheme}
       />
 
       {/* KPI Cards */}
@@ -157,7 +185,20 @@ export default function App() {
 
         {/* Right Column: 7-Day Forecast & PO Manager */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          <ForecastVisualizer forecast={forecast} product={selectedProductObj} />
+          {selectedProductId && forecast && selectedProductObj ? (
+            <div style={{ position: 'relative' }}>
+              <button 
+                onClick={() => { setSelectedProductId(null); setForecast(null); }}
+                className="button-secondary"
+                style={{ position: 'absolute', top: '15px', right: '15px', zIndex: 10, fontSize: '0.75rem', padding: '0.3rem 0.6rem' }}
+              >
+                Close Forecast
+              </button>
+              <ForecastVisualizer forecast={forecast} product={selectedProductObj} />
+            </div>
+          ) : (
+            <GlobalShortfallsChart inventory={inventory} />
+          )}
           <PurchaseOrdersManager
             purchaseOrders={purchaseOrders}
             products={products}
@@ -165,6 +206,13 @@ export default function App() {
           />
         </div>
       </div>
+
+      <Dock 
+        items={dockItems} 
+        panelHeight={68}
+        baseItemSize={50}
+        magnification={70}
+      />
 
       {/* Modals */}
       {adjustModalProduct && (

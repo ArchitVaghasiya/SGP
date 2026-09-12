@@ -1,21 +1,17 @@
 import React from 'react';
-import { Package, RefreshCw, Sun, Moon, Cpu, Server } from 'lucide-react';
+import { Server } from 'lucide-react';
 
 export function Navbar({ 
   selectedStore, 
   setSelectedStore, 
   stores, 
-  onRunRestock, 
-  isEvaluating, 
-  backendStatus, 
-  theme, 
-  setTheme 
+  backendStatus 
 }) {
   return (
     <header className="header-bar">
       <div className="brand-title">
-        <div className="brand-icon">
-          <Package size={24} />
+        <div className="brand-icon" style={{ display: 'flex', alignItems: 'center' }}>
+          <img src="/logo.jpg" alt="AutoStock AI Logo" style={{ width: '32px', height: '32px', borderRadius: '6px', objectFit: 'cover' }} />
         </div>
         <div className="brand-text">
           <h1>AutoStock AI</h1>
@@ -61,25 +57,6 @@ export function Navbar({
           </select>
         </div>
 
-        {/* Action Button: Evaluate Restock */}
-        <button 
-          className="button-primary"
-          onClick={onRunRestock}
-          disabled={isEvaluating}
-        >
-          <RefreshCw size={16} className={isEvaluating ? "animate-spin" : ""} />
-          <span>{isEvaluating ? "Evaluating ML Forecasts..." : "Run Restock Engine"}</span>
-        </button>
-
-        {/* Theme Toggle */}
-        <button 
-          className="button-secondary"
-          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          title="Toggle Light/Dark Theme"
-          style={{ padding: '0.6rem' }}
-        >
-          {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-        </button>
       </div>
     </header>
   );

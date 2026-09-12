@@ -105,7 +105,7 @@ export async function checkBackendHealth() {
       const data = await res.json();
       return { isOnline: true, data };
     }
-  } catch (err) {
+  } catch {
     // Offline fallback
   }
   return { isOnline: false, data: { status: 'offline', version: '1.0.0 (Demo Mode)' } };
@@ -176,7 +176,7 @@ export async function get7DayForecast(storeId = 1, productId = 1) {
   };
 }
 
-export async function evaluateRestock(storeId = 1, strategyType = 'statistical') {
+export async function evaluateRestock(storeId = 1, _strategyType = 'statistical') {
   try {
     const res = await fetch(`${API_BASE_URL}/restock/evaluate?store_id=${storeId}`);
     if (res.ok) {
@@ -252,6 +252,20 @@ export async function getPurchaseOrders(storeId = null, status = null) {
 }
 
 export async function updatePOStatus(poId, newStatus) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/restock/orders/${poId}/status`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: newStatus })
+    });
+    if (res.ok) {
+      return await res.json();
+    } else {
+      console.error("Failed to update PO status:", await res.text());
+    }
+  } catch (e) {
+    console.error("Error updating PO status:", e);
+  }
   return { po_id: poId, status: newStatus };
 }
 
