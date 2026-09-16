@@ -4,7 +4,7 @@ A production-grade, end-to-end AI supply chain system built with **FastAPI**, **
 
 ---
 
-## Architecture & Technology Stack
+## Architecture & Technology Stack  
 
 - **ML & Forecasting Engine**: LightGBM Regressor (`model_v1.pkl`), engineered with lag features ($t-1, t-7, t-14$), rolling 7-day and 28-day sales statistics, calendar attributes, holiday event joins, and crude oil price dynamics trained over **3,000,888 real sales records**.
 - **Restock Decision Service**: Decoupled domain module evaluating inventory threshold rules:
