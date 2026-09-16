@@ -1,6 +1,6 @@
 # Automated Supply Chain Restock & Stockout Prevention Engine
 
-A production-grade, end-to-end AI supply chain system built with **FastAPI**, **LightGBM**, **PostgreSQL**, and **React (Vite)**. Designed for retail store operations to forecast 7-day cumulative item demand, dynamically calculate statistical safety stock buffers, automatically generate purchase orders, and prevent stockouts across retail store networks.
+A production-grade, end-to-end AI supply chain system built with **FastAPI**, **LightGBM**, **PostgreSQL**, and **React (Vite)**. Designed for retail store operations to forecast 7-day cumulative item demand, dynamically calculate statistical safety stock buffers, automatically generate purchase orders, and prevent stockouts across retail store networks.  
 
 ---
 
