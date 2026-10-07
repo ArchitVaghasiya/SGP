@@ -1,186 +1,240 @@
 import React, { useState, useEffect } from 'react';
-import { Navbar } from './components/Navbar';
-import { KPIDashboard } from './components/KPIDashboard';
-import { InventoryMatrix } from './components/InventoryMatrix';
-import { ForecastVisualizer } from './components/ForecastVisualizer';
-import { PurchaseOrdersManager } from './components/PurchaseOrdersManager';
-import { StockAdjustmentModal } from './components/StockAdjustmentModal';
-import { RestockEvaluationModal } from './components/RestockEvaluationModal';
+import { Sidebar } from './components/Sidebar';
+import { TopBar } from './components/TopBar';
+import { CommandPalette } from './components/CommandPalette';
+import { LoginView } from './components/LoginView';
+import { ControlTowerView } from './components/ControlTowerView';
+import { InventoryView } from './components/InventoryView';
+import { SKUIntelligenceView } from './components/SKUIntelligenceView';
+import { ForecastsView } from './components/ForecastsView';
+import { PurchaseOrdersView } from './components/PurchaseOrdersView';
+import { SuppliersView } from './components/SuppliersView';
+import { StoresView } from './components/StoresView';
+import { AlertsView } from './components/AlertsView';
+import { AnalyticsView } from './components/AnalyticsView';
+import { SimulationView } from './components/SimulationView';
+import { TransactionsView } from './components/TransactionsView';
+import { AuditView } from './components/AuditView';
+import { UserProfileModal } from './components/UserProfileModal';
+import api, { getCurrentUser, setCurrentUser, getAuthToken, setAuthToken } from './api';
 
-import {
-  checkBackendHealth,
-  getStores,
-  getProducts,
-  getInventory,
-  get7DayForecast,
-  evaluateRestock,
-  updateStock,
-  getPurchaseOrders,
-  updatePOStatus
-} from './api';
+export function App() {
+  const [currentUser, setUser] = useState(getCurrentUser());
+  const [activeView, setActiveView] = useState('dashboard');
+  const [selectedStore, setSelectedStore] = useState(null);
+  const [selectedSku, setSelectedSku] = useState(null); // { storeId, productId }
+  const [simTarget, setSimTarget] = useState({ storeId: 1, productId: 1 });
 
-export default function App() {
-  const [stores, setStores] = useState([]);
-  const [products, setProducts] = useState([]);
-  const [selectedStore, setSelectedStore] = useState(1);
-  const [inventory, setInventory] = useState([]);
-  const [purchaseOrders, setPurchaseOrders] = useState([]);
-  const [selectedProductId, setSelectedProductId] = useState(1);
-  const [forecast, setForecast] = useState(null);
+  const [theme, setTheme] = useState(localStorage.getItem('supplyiq_theme') || 'dark');
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   
-  const [theme, setTheme] = useState('dark');
-  const [backendStatus, setBackendStatus] = useState({ isOnline: false });
-  const [isEvaluating, setIsEvaluating] = useState(false);
-  const [evaluationResult, setEvaluationResult] = useState(null);
-  const [adjustModalProduct, setAdjustModalProduct] = useState(null);
+  const [unreadAlertsCount, setUnreadAlertsCount] = useState(0);
+  const [storesList, setStoresList] = useState([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Sync theme to root element
+  // Apply theme to document
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('supplyiq_theme', theme);
   }, [theme]);
 
-  // Load stores, products, and check backend health on mount
-  useEffect(() => {
-    async function init() {
-      const health = await checkBackendHealth();
-      setBackendStatus(health);
-
-      const storeList = await getStores();
-      setStores(storeList);
-
-      const prodList = await getProducts();
-      setProducts(prodList);
-    }
-    init();
-  }, []);
-
-  // Fetch store inventory, purchase orders, and default forecast when store changes
-  useEffect(() => {
-    async function loadStoreData() {
-      const invData = await getInventory(selectedStore);
-      setInventory(invData);
-
-      const poData = await getPurchaseOrders(selectedStore);
-      setPurchaseOrders(poData);
-
-      if (invData.length > 0) {
-        const firstProdId = invData[0].product_id;
-        setSelectedProductId(firstProdId);
-        const fc = await get7DayForecast(selectedStore, firstProdId);
-        setForecast(fc);
-      }
-    }
-    loadStoreData();
-  }, [selectedStore]);
-
-  // Fetch forecast when user selects a product
-  const handleSelectProductForForecast = async (productId) => {
-    setSelectedProductId(productId);
-    const fc = await get7DayForecast(selectedStore, productId);
-    setForecast(fc);
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
   };
 
-  // Run Restock Evaluation Engine
-  const handleRunRestockEngine = async () => {
-    setIsEvaluating(true);
+  // Fetch initial stores and alert summary
+  const loadGlobalData = async () => {
     try {
-      const res = await evaluateRestock(selectedStore, 'statistical');
-      setEvaluationResult(res);
-
-      const updatedInv = await getInventory(selectedStore);
-      setInventory(updatedInv);
-
-      const updatedPOs = await getPurchaseOrders(selectedStore);
-      setPurchaseOrders(updatedPOs);
-    } catch (e) {
-      console.error("Restock evaluation error:", e);
-    } finally {
-      setIsEvaluating(false);
+      const [storesRes, alertsRes] = await Promise.all([
+        api.getStores(),
+        api.getAlertsSummary()
+      ]);
+      setStoresList(storesRes || []);
+      setUnreadAlertsCount(alertsRes?.unread_alerts || 0);
+    } catch (err) {
+      console.error("Failed to load global shell data:", err);
     }
   };
 
-  // Adjust stock level
-  const handleSaveStockAdjustment = async (storeId, productId, overrideStock, stockChange) => {
-    const targetStoreId = storeId || selectedStore;
-    await updateStock(targetStoreId, productId, overrideStock, stockChange);
+  useEffect(() => {
+    if (currentUser) {
+      loadGlobalData();
+    }
+  }, [currentUser]);
 
-    const updatedInv = await getInventory(targetStoreId);
-    setInventory(updatedInv);
-
-    const updatedPOs = await getPurchaseOrders(targetStoreId);
-    setPurchaseOrders(updatedPOs);
-
-    setSelectedProductId(productId);
-    const fc = await get7DayForecast(targetStoreId, productId);
-    setForecast(fc);
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await loadGlobalData();
+    setTimeout(() => setIsRefreshing(false), 500);
   };
 
-  // Update PO status (Approve / Fulfill)
-  const handleUpdatePOStatus = async (poId, newStatus) => {
-    await updatePOStatus(poId, newStatus);
-
-    const updatedPOs = await getPurchaseOrders(selectedStore);
-    setPurchaseOrders(updatedPOs);
-
-    const updatedInv = await getInventory(selectedStore);
-    setInventory(updatedInv);
+  const handleLoginSuccess = (user) => {
+    setUser(user);
+    setActiveView('dashboard');
   };
 
-  const selectedProductObj = inventory.find(p => p.product_id === selectedProductId) || products.find(p => p.product_id === selectedProductId) || products[0];
+  const handleLogout = () => {
+    setAuthToken(null);
+    setCurrentUser(null);
+    setUser(null);
+  };
+
+  const handleNavigate = (viewId) => {
+    setSelectedSku(null);
+    setActiveView(viewId);
+  };
+
+  const handleSelectSku = (storeId, productId) => {
+    setSelectedSku({ storeId, productId });
+    setActiveView('sku-detail');
+  };
+
+  const handleLaunchSimulate = (storeId, productId) => {
+    setSimTarget({ storeId, productId });
+    setActiveView('simulations');
+  };
+
+  // If not authenticated, render LoginView
+  if (!currentUser) {
+    return <LoginView onLoginSuccess={handleLoginSuccess} />;
+  }
 
   return (
-    <div style={{ minHeight: '100vh', paddingBottom: '3rem' }}>
-      {/* Header Bar */}
-      <Navbar
-        selectedStore={selectedStore}
-        setSelectedStore={setSelectedStore}
-        stores={stores}
-        onRunRestock={handleRunRestockEngine}
-        isEvaluating={isEvaluating}
-        backendStatus={backendStatus}
-        theme={theme}
-        setTheme={setTheme}
+    <div className="app-container">
+      {/* Collapsible Left Sidebar */}
+      <Sidebar
+        activeView={activeView}
+        onNavigate={handleNavigate}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={() => setIsSidebarCollapsed(prev => !prev)}
+        unreadAlertsCount={unreadAlertsCount}
+        currentUser={currentUser}
+        onOpenProfile={() => setIsProfileModalOpen(true)}
+        onLogout={handleLogout}
       />
 
-      {/* KPI Cards */}
-      <KPIDashboard inventory={inventory} purchaseOrders={purchaseOrders} />
-
-      {/* Main Dashboard Workspace */}
-      <div className="dashboard-workspace">
-        {/* Left Column: Inventory Matrix Table */}
-        <InventoryMatrix
-          inventory={inventory}
-          onSelectProductForForecast={handleSelectProductForForecast}
-          onOpenAdjustModal={(prod) => setAdjustModalProduct(prod)}
-          selectedProductId={selectedProductId}
+      {/* Main Content Area */}
+      <div className="main-content">
+        {/* Sticky Top Bar */}
+        <TopBar
+          selectedStore={selectedStore}
+          onSelectStore={setSelectedStore}
+          storesList={storesList}
+          onOpenSearch={() => setIsCommandPaletteOpen(true)}
+          theme={theme}
+          onToggleTheme={toggleTheme}
+          unreadAlertsCount={unreadAlertsCount}
+          onOpenNotifications={() => handleNavigate('alerts')}
+          currentUser={currentUser}
+          onOpenProfile={() => setIsProfileModalOpen(true)}
+          onRefreshData={handleRefresh}
+          isRefreshing={isRefreshing}
         />
 
-        {/* Right Column: 7-Day Forecast & PO Manager */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          <ForecastVisualizer forecast={forecast} product={selectedProductObj} />
-          <PurchaseOrdersManager
-            purchaseOrders={purchaseOrders}
-            products={products}
-            onUpdatePOStatus={handleUpdatePOStatus}
+        {/* View Router */}
+        {activeView === 'dashboard' && (
+          <ControlTowerView
+            selectedStore={selectedStore}
+            onNavigate={handleNavigate}
+            onSelectSku={handleSelectSku}
           />
-        </div>
+        )}
+
+        {activeView === 'inventory' && (
+          <InventoryView
+            selectedStore={selectedStore}
+            onSelectSku={handleSelectSku}
+          />
+        )}
+
+        {activeView === 'sku-detail' && selectedSku && (
+          <SKUIntelligenceView
+            storeId={selectedSku.storeId}
+            productId={selectedSku.productId}
+            onBack={() => setActiveView('inventory')}
+            onNavigate={handleNavigate}
+            onSimulate={handleLaunchSimulate}
+          />
+        )}
+
+        {activeView === 'forecasts' && (
+          <ForecastsView />
+        )}
+
+        {activeView === 'purchase-orders' && (
+          <PurchaseOrdersView
+            selectedStore={selectedStore}
+            onNavigate={handleNavigate}
+          />
+        )}
+
+        {activeView === 'suppliers' && (
+          <SuppliersView
+            onNavigate={handleNavigate}
+          />
+        )}
+
+        {activeView === 'stores' && (
+          <StoresView
+            onSelectStore={(id) => setSelectedStore(id)}
+            onNavigate={handleNavigate}
+          />
+        )}
+
+        {activeView === 'alerts' && (
+          <AlertsView
+            selectedStore={selectedStore}
+            onNavigate={handleNavigate}
+            onSelectSku={handleSelectSku}
+          />
+        )}
+
+        {activeView === 'analytics' && (
+          <AnalyticsView
+            onSelectSku={handleSelectSku}
+          />
+        )}
+
+        {activeView === 'simulations' && (
+          <SimulationView
+            defaultStoreId={simTarget.storeId}
+            defaultProductId={simTarget.productId}
+          />
+        )}
+
+        {activeView === 'transactions' && (
+          <TransactionsView
+            selectedStore={selectedStore}
+            onSelectSku={handleSelectSku}
+          />
+        )}
+
+        {activeView === 'audit' && (
+          <AuditView />
+        )}
       </div>
 
-      {/* Modals */}
-      {adjustModalProduct && (
-        <StockAdjustmentModal
-          product={adjustModalProduct}
-          onClose={() => setAdjustModalProduct(null)}
-          onSave={handleSaveStockAdjustment}
-        />
-      )}
+      {/* Global Command Palette (Ctrl + K) */}
+      <CommandPalette
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        onNavigate={handleNavigate}
+        onSelectSku={handleSelectSku}
+      />
 
-      {evaluationResult && (
-        <RestockEvaluationModal
-          evaluationResult={evaluationResult}
-          onClose={() => setEvaluationResult(null)}
-        />
-      )}
+      {/* User Profile & Settings Modal */}
+      <UserProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        currentUser={currentUser}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+        onLogout={handleLogout}
+      />
     </div>
   );
 }
+
+export default App;

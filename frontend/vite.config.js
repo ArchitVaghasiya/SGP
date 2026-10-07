@@ -7,6 +7,10 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
+      '/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true
+      },
       '/forecast': 'http://localhost:8000',
       '/restock': 'http://localhost:8000',
       '/inventory': 'http://localhost:8000'

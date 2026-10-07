@@ -47,8 +47,12 @@ class RestockEvaluationResponse(BaseModel):
 class InventoryUpdateRequest(BaseModel):
     store_id: int = Field(..., json_schema_extra={"example": 1})
     product_id: int = Field(..., json_schema_extra={"example": 1})
-    stock_change: Optional[float] = Field(None, json_schema_extra={"example": 50.0}, description="Positive for stock receipt, negative for sales adjustment")
+    stock_change: Optional[float] = Field(None, json_schema_extra={"example": 50.0}, description="Positive for stock receipt, negative for deductions")
     override_stock: Optional[float] = Field(None, json_schema_extra={"example": 150.0}, description="Directly set absolute stock quantity if provided")
+    new_stock: Optional[float] = Field(None, json_schema_extra={"example": 150.0}, description="Alias for override_stock")
+    reason: Optional[str] = Field(None, json_schema_extra={"example": "MANUAL_ADJUSTMENT"})
+    notes: Optional[str] = Field(None, json_schema_extra={"example": "Physical inventory count"})
+    updated_by: Optional[str] = Field(None, json_schema_extra={"example": "admin@supplyiq.io"})
 
 
 class InventoryUpdateResponse(BaseModel):

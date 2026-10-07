@@ -6,7 +6,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 from src.api.main import app
 from src.db.session import get_db, Base
-from src.db.models import Store, Product, SalesHistory, Inventory
+from src.db.models import Store, Product, SalesHistory, Inventory, PurchaseOrder, Forecast, OilPrice, HolidayEvent
 
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
 engine = create_engine(
@@ -37,28 +37,36 @@ def seed_test_data(db):
         db.add_all([sh1, sh2])
     db.commit()
 
-Base.metadata.create_all(bind=engine)
-db = TestingSessionLocal()
-seed_test_data(db)
-db.close()
-
-def override_get_db():
+@pytest.fixture(autouse=True)
+def setup_and_teardown_db():
+    Base.metadata.create_all(bind=engine)
     db = TestingSessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+    seed_test_data(db)
+    db.close()
 
-app.dependency_overrides[get_db] = override_get_db
+    def override_get_db():
+        db = TestingSessionLocal()
+        try:
+            yield db
+        finally:
+            db.close()
 
-client = TestClient(app)
+    app.dependency_overrides[get_db] = override_get_db
+    yield
+    app.dependency_overrides.clear()
+    Base.metadata.drop_all(bind=engine)
 
-def test_health_check():
-    response = client.get("/")
+@pytest.fixture
+def client():
+    return TestClient(app)
+
+def test_health_check(client):
+    response = client.get("/health")
     assert response.status_code == 200
     assert response.json()["status"] == "healthy"
+    assert response.json()["database"] == "connected"
 
-def test_get_raw_forecast():
+def test_get_raw_forecast(client):
     response = client.get("/forecast/1/1")
     assert response.status_code == 200
     data = response.json()
@@ -67,7 +75,7 @@ def test_get_raw_forecast():
     assert "predicted_demand_7d" in data
     assert len(data["daily_forecast"]) == 7
 
-def test_evaluate_restock():
+def test_evaluate_restock(client):
     response = client.get("/restock/evaluate?store_id=1")
     assert response.status_code == 200
     data = response.json()
@@ -75,7 +83,7 @@ def test_evaluate_restock():
     assert "evaluated_products_count" in data
     assert "evaluations" in data
 
-def test_list_purchase_orders():
+def test_list_purchase_orders(client):
     client.get("/restock/evaluate?store_id=1")
     response = client.get("/restock/orders?store_id=1")
     assert response.status_code == 200
