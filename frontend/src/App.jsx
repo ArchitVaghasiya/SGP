@@ -101,33 +101,6 @@ export function App() {
     return <LoginView onLoginSuccess={handleLoginSuccess} />;
   }
 
-  const dockItems = [
-    { 
-      icon: <BarChart2 size={22} />, 
-      label: 'Global Shortfalls', 
-      onClick: () => { setSelectedProductId(null); setForecast(null); }
-    },
-    { 
-      icon: <RefreshCw size={22} className={isEvaluating ? "animate-spin" : ""} />, 
-      label: 'Run AI Engine', 
-      onClick: handleRunRestockEngine 
-    },
-    { 
-      icon: <Package size={22} />, 
-      label: 'Purchase Orders', 
-      onClick: () => { window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }); } 
-    },
-    { 
-      icon: theme === 'dark' ? <Sun size={22} /> : <Moon size={22} />, 
-      label: 'Toggle Theme', 
-      onClick: () => setTheme(theme === 'dark' ? 'light' : 'dark') 
-    },
-  ];
-
-  if (showSplash) {
-    return <SplashScreen onComplete={() => setShowSplash(false)} />;
-  }
-
   return (
     <div className="app-container">
       {/* Collapsible Left Sidebar */}
