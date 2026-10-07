@@ -1,4 +1,3 @@
-import React from 'react';
 import { PackageCheck, AlertTriangle, TrendingUp, ShoppingBag, ShieldCheck } from 'lucide-react';
 
 export function KPIDashboard({ inventory, purchaseOrders }) {
@@ -11,7 +10,8 @@ export function KPIDashboard({ inventory, purchaseOrders }) {
   const kpis = [
     {
       label: "Total Stock On-Hand",
-      value: Math.round(totalStock).toLocaleString() + " units",
+      value: Math.round(totalStock),
+      suffix: " units",
       subtext: `Across ${inventory.length} tracked product families`,
       icon: PackageCheck,
       color: "var(--accent-cyan)",
@@ -27,7 +27,8 @@ export function KPIDashboard({ inventory, purchaseOrders }) {
     },
     {
       label: "7-Day Projected Demand",
-      value: Math.round(total7dForecast).toLocaleString() + " units",
+      value: Math.round(total7dForecast),
+      suffix: " units",
       subtext: "LightGBM v1.0.0 ML Forecast",
       icon: TrendingUp,
       color: "var(--accent-indigo)",
@@ -43,7 +44,8 @@ export function KPIDashboard({ inventory, purchaseOrders }) {
     },
     {
       label: "Dynamic Safety Stock",
-      value: Math.round(totalSafetyBuffer).toLocaleString() + " units",
+      value: Math.round(totalSafetyBuffer),
+      suffix: " units",
       subtext: "95% Target Service Level Protection",
       icon: ShieldCheck,
       color: "var(--accent-emerald)",
@@ -64,7 +66,8 @@ export function KPIDashboard({ inventory, purchaseOrders }) {
               </div>
             </div>
             <div className="kpi-value" style={{ color: kpi.color }}>
-              {kpi.value}
+              {typeof kpi.value === 'number' ? kpi.value.toLocaleString(undefined, { maximumFractionDigits: 3 }) : kpi.value}
+              {kpi.suffix && <span style={{ fontSize: '1.2rem', marginLeft: '0.2rem' }}>{kpi.suffix}</span>}
             </div>
             <div className="kpi-subtext">{kpi.subtext}</div>
           </div>

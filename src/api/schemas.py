@@ -43,6 +43,10 @@ class RestockEvaluationResponse(BaseModel):
     generated_purchase_orders: List[PurchaseOrderSchema]
     evaluations: List[ProductEvaluationItem]
 
+class POStatusUpdateRequest(BaseModel):
+    status: str = Field(..., json_schema_extra={"example": "APPROVED"})
+
+
 # Inventory Update Schema
 class InventoryUpdateRequest(BaseModel):
     store_id: int = Field(..., json_schema_extra={"example": 1})
