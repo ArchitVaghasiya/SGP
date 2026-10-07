@@ -66,8 +66,8 @@ export function PurchaseOrdersView({
     }).catch(err => console.log('Products load info:', err));
   }, []);
 
-  const fetchOrders = async () => {
-    setIsLoading(true);
+  const fetchOrders = async (isSilent = false) => {
+    if (!isSilent) setIsLoading(true);
     setError(null);
     try {
       const res = await api.getPurchaseOrders({
@@ -80,9 +80,9 @@ export function PurchaseOrdersView({
       setTotal(res.total || 0);
       if (res.status_counts) setStatusCounts(res.status_counts);
     } catch (err) {
-      setError(err.message || 'Failed to load purchase orders');
+      if (!isSilent) setError(err.message || 'Failed to load purchase orders');
     } finally {
-      setIsLoading(false);
+      if (!isSilent) setIsLoading(false);
     }
   };
 
@@ -92,6 +92,15 @@ export function PurchaseOrdersView({
 
   useEffect(() => {
     fetchOrders();
+    const interval = setInterval(() => {
+      fetchOrders(true);
+    }, 8000);
+    const handleFocus = () => fetchOrders(true);
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, [activeTab, selectedStore, page]);
 
   const handleCreatePO = async (e, autoApprove = false) => {

@@ -61,6 +61,13 @@ export function App() {
   useEffect(() => {
     if (currentUser) {
       loadGlobalData();
+      const interval = setInterval(loadGlobalData, 15000);
+      const handleFocus = () => loadGlobalData();
+      window.addEventListener('focus', handleFocus);
+      return () => {
+        clearInterval(interval);
+        window.removeEventListener('focus', handleFocus);
+      };
     }
   }, [currentUser]);
 

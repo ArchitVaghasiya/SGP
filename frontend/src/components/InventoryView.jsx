@@ -40,8 +40,8 @@ export function InventoryView({
   const [quickRestockTarget, setQuickRestockTarget] = useState(null);
   const [notification, setNotification] = useState(null);
 
-  const fetchInventory = async () => {
-    setIsLoading(true);
+  const fetchInventory = async (isSilent = false) => {
+    if (!isSilent) setIsLoading(true);
     setError(null);
     try {
       const res = await api.getInventoryList({
@@ -56,9 +56,9 @@ export function InventoryView({
       setTotal(res.total || 0);
       if (res.categories) setCategories(res.categories);
     } catch (err) {
-      setError(err.message || 'Failed to load inventory records');
+      if (!isSilent) setError(err.message || 'Failed to load inventory records');
     } finally {
-      setIsLoading(false);
+      if (!isSilent) setIsLoading(false);
     }
   };
 
@@ -68,6 +68,15 @@ export function InventoryView({
 
   useEffect(() => {
     fetchInventory();
+    const interval = setInterval(() => {
+      fetchInventory(true);
+    }, 10000);
+    const handleFocus = () => fetchInventory(true);
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, [selectedStore, statusFilter, categoryFilter, search, page]);
 
   const handleExportCSV = () => {

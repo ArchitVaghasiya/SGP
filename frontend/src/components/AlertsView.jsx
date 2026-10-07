@@ -27,8 +27,8 @@ export function AlertsView({ selectedStore, onNavigate, onSelectSku }) {
   const [quickRestockTarget, setQuickRestockTarget] = useState(null);
   const [notification, setNotification] = useState(null);
 
-  const fetchAlerts = async () => {
-    setIsLoading(true);
+  const fetchAlerts = async (isSilent = false) => {
+    if (!isSilent) setIsLoading(true);
     setError(null);
     try {
       const [listRes, sumRes] = await Promise.all([
@@ -45,9 +45,9 @@ export function AlertsView({ selectedStore, onNavigate, onSelectSku }) {
       setTotal(listRes.total || 0);
       setSummary(sumRes);
     } catch (err) {
-      setError(err.message || 'Failed to load alerts');
+      if (!isSilent) setError(err.message || 'Failed to load alerts');
     } finally {
-      setIsLoading(false);
+      if (!isSilent) setIsLoading(false);
     }
   };
 
@@ -57,6 +57,15 @@ export function AlertsView({ selectedStore, onNavigate, onSelectSku }) {
 
   useEffect(() => {
     fetchAlerts();
+    const interval = setInterval(() => {
+      fetchAlerts(true);
+    }, 10000);
+    const handleFocus = () => fetchAlerts(true);
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, [severityFilter, statusFilter, selectedStore, page]);
 
   const handleAcknowledge = async (id) => {

@@ -2,8 +2,8 @@ import os
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
-    # Primary Neon / PostgreSQL Database URL
-    DATABASE_URL: str = "postgresql://neondb_owner:YOUR_PASSWORD_HERE@ep-billowing-firefly-b3899ok9-pooler.c-4.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+    # Primary Shared Neon Serverless PostgreSQL Database URL
+    DATABASE_URL: str = "postgresql://neondb_owner:npg_0ht7usPYekxb@ep-billowing-firefly-b3899ok9-pooler.c-4.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
     
     # DB Pool Configurations for Neon Serverless
     DB_POOL_SIZE: int = 10
