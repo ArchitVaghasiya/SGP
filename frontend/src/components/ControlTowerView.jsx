@@ -12,12 +12,14 @@ import {
   Layers,
   CheckCircle2,
   ChevronRight,
-  Info
+  Info,
+  Zap
 } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, Legend, Line, ComposedChart } from 'recharts';
 import { StatCard, Badge } from './ui/StatCard';
 import { SkeletonLoader, EmptyState } from './ui/ModalsAndLoaders';
 import { ExplainableDrawer } from './ExplainableDrawer';
+import { QuickRestockModal } from './QuickRestockModal';
 import api from '../api';
 
 export function ControlTowerView({
@@ -32,6 +34,8 @@ export function ControlTowerView({
   const [error, setError] = useState(null);
   const [activeDecision, setActiveDecision] = useState(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [quickRestockTarget, setQuickRestockTarget] = useState(null);
+  const [notification, setNotification] = useState(null);
 
   const fetchOverview = async () => {
     setIsLoading(true);
@@ -57,18 +61,33 @@ export function ControlTowerView({
 
   const handleAuthorizePO = async (rec) => {
     try {
-      await api.createPurchaseOrder({
+      const res = await api.createPurchaseOrder({
         store_id: rec.store_id,
         product_id: rec.product_id,
         order_quantity: rec.recommended_order,
-        unit_cost: rec.unit_price || 12.0
+        unit_cost: rec.unit_price || 12.0,
+        auto_approve: true
       });
       setIsDrawerOpen(false);
+      setNotification({
+        message: res.message || `Purchase order approved! Stock credited to database and critical risk resolved.`,
+        type: 'success'
+      });
       fetchOverview();
-      onNavigate?.('purchase-orders');
     } catch (err) {
-      alert(`Error creating PO: ${err.message}`);
+      setNotification({
+        message: `Error authorizing PO: ${err.message}`,
+        type: 'error'
+      });
     }
+  };
+
+  const handleRestockSuccess = (result) => {
+    setNotification({
+      message: result.message || `Restock order approved! Stock updated to ${result.newStock} units in database.`,
+      type: 'success'
+    });
+    fetchOverview();
   };
 
   if (isLoading && !data) {
@@ -105,6 +124,35 @@ export function ControlTowerView({
 
   return (
     <div className="page-wrapper">
+      {/* Toast Notification Banner */}
+      {notification && (
+        <div style={{
+          marginBottom: '18px',
+          padding: '14px 18px',
+          borderRadius: 'var(--radius-md)',
+          background: notification.type === 'success' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(244, 63, 94, 0.15)',
+          border: `1px solid ${notification.type === 'success' ? 'var(--color-success)' : 'var(--color-danger)'}`,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          animation: 'fadeIn 0.3s ease-in-out'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <CheckCircle2 size={18} color={notification.type === 'success' ? 'var(--color-success)' : 'var(--color-danger)'} />
+            <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
+              {notification.message}
+            </span>
+          </div>
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => setNotification(null)}
+            style={{ padding: '2px 8px', fontSize: '12px' }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
@@ -401,12 +449,39 @@ export function ControlTowerView({
                       {rec.recommended_order} units
                     </td>
                     <td>
-                      <button
-                        className="btn btn-secondary btn-sm"
-                        onClick={() => handleOpenDecision(rec)}
-                      >
-                        View Decision
-                      </button>
+                      <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center' }}>
+                        <button
+                          className="btn btn-sm"
+                          style={{
+                            background: 'linear-gradient(135deg, #6366f1 0%, #06b6d4 100%)',
+                            color: '#fff',
+                            fontWeight: 700,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '4px 10px',
+                            borderRadius: 'var(--radius-sm)'
+                          }}
+                          onClick={() => setQuickRestockTarget({
+                            store_id: rec.store_id,
+                            product_id: rec.product_id,
+                            product_name: rec.product_name,
+                            sku: rec.sku,
+                            current_stock: rec.current_stock,
+                            safety_buffer: rec.safety_buffer,
+                            unit_price: rec.unit_price || 15.0
+                          })}
+                          title="Instant Restock & Approve"
+                        >
+                          <Zap size={13} /> Restock
+                        </button>
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => handleOpenDecision(rec)}
+                        >
+                          View Decision
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -437,6 +512,16 @@ export function ControlTowerView({
           onSelectSku?.(rec.store_id, rec.product_id);
         }}
       />
+
+      {/* Quick Restock Modal */}
+      {quickRestockTarget && (
+        <QuickRestockModal
+          isOpen={Boolean(quickRestockTarget)}
+          onClose={() => setQuickRestockTarget(null)}
+          item={quickRestockTarget}
+          onSuccess={handleRestockSuccess}
+        />
+      )}
     </div>
   );
 }

@@ -16,7 +16,8 @@ class POCreateRequest(BaseModel):
     supplier_id: Optional[int] = None
     unit_cost: Optional[float] = 12.00
     expected_delivery_date: Optional[str] = None
-    created_by: Optional[str] = "SupplyIQ Auto-Engine"
+    created_by: Optional[str] = "SupplyIQ Specialist"
+    auto_approve: Optional[bool] = False
 
 class POActionResponse(BaseModel):
     success: bool
@@ -24,6 +25,7 @@ class POActionResponse(BaseModel):
     po_id: int
     po_number: str
     status: str
+    new_stock: Optional[float] = None
 
 @router.get("/list")
 def list_purchase_orders(
@@ -138,25 +140,28 @@ def create_purchase_order(
     current_user: User = Depends(require_auth),
     db: Session = Depends(get_db)
 ):
-    inv = db.query(Inventory).filter_by(store_id=payload.store_id, product_id=payload.product_id).first()
+    inv = db.query(Inventory).filter_by(store_id=payload.store_id, product_id=payload.product_id).with_for_update().first()
     cur_stock = float(inv.current_stock) if inv else 0.0
     s_buff = float(inv.safety_buffer) if inv else 50.0
 
     unit_cost = payload.unit_cost or 12.00
     total_cost = payload.order_quantity * unit_cost
+    qty = float(payload.order_quantity)
+
+    initial_status = "APPROVED" if payload.auto_approve else "PENDING"
 
     po = PurchaseOrder(
         store_id=payload.store_id,
         product_id=payload.product_id,
         supplier_id=payload.supplier_id or 1,
-        order_quantity=payload.order_quantity,
+        order_quantity=qty,
         unit_cost=unit_cost,
         total_cost=total_cost,
         predicted_demand_7d=s_buff * 1.5,
         current_stock=cur_stock,
         safety_buffer=s_buff,
         shortfall=max(0.0, (s_buff * 1.5) - cur_stock),
-        status="PENDING",
+        status=initial_status,
         created_by=current_user.full_name or "SupplyIQ Specialist"
     )
     db.add(po)
@@ -164,23 +169,88 @@ def create_purchase_order(
 
     po.po_number = f"PO-2026-{po.po_id:04d}"
 
-    # Write Audit Log
-    audit = AuditLog(
-        user_email=current_user.email,
-        action="PO_CREATE",
-        entity="PURCHASE_ORDER",
-        entity_id=str(po.po_id),
-        new_state=f"Created PO {po.po_number} for {payload.order_quantity} units"
-    )
-    db.add(audit)
+    new_stock = cur_stock
+    if payload.auto_approve:
+        # Immediately reflect in Inventory table
+        if not inv:
+            inv = Inventory(
+                store_id=payload.store_id,
+                product_id=payload.product_id,
+                current_stock=qty,
+                safety_buffer=s_buff,
+                lead_time_days=7,
+                last_updated=datetime.now(timezone.utc)
+            )
+            db.add(inv)
+            prev_qty = 0.0
+            new_stock = qty
+        else:
+            prev_qty = float(inv.current_stock)
+            new_stock = prev_qty + qty
+            inv.current_stock = new_stock
+            inv.last_updated = datetime.now(timezone.utc)
+
+        # Add double-entry inventory ledger transaction
+        tx = InventoryTransaction(
+            store_id=payload.store_id,
+            product_id=payload.product_id,
+            transaction_type="RECEIPT",
+            quantity_change=qty,
+            previous_quantity=prev_qty,
+            resulting_quantity=new_stock,
+            reference_type="PURCHASE_ORDER_INSTANT_RESTOCK",
+            reference_id=po.po_number,
+            notes=f"Instant stock restock (+{qty} units) authorized by {current_user.full_name or current_user.email}",
+            created_by=current_user.email
+        )
+        db.add(tx)
+
+        # Resolve critical alerts for this Store-Product pair
+        db.query(StockAlert).filter(
+            StockAlert.store_id == payload.store_id,
+            StockAlert.product_id == payload.product_id,
+            StockAlert.status.in_(["UNREAD", "ACKNOWLEDGED"])
+        ).update(
+            {"status": "RESOLVED", "resolved_at": datetime.now(timezone.utc)},
+            synchronize_session=False
+        )
+
+        # Audit Log
+        audit = AuditLog(
+            user_email=current_user.email,
+            action="PO_CREATE_AND_APPROVE",
+            entity="PURCHASE_ORDER",
+            entity_id=str(po.po_id),
+            previous_state=f"Stock: {prev_qty}",
+            new_state=f"APPROVED ({po.po_number}, Stock updated to {new_stock}, +{qty} units credited)"
+        )
+        db.add(audit)
+    else:
+        # Standard PO Creation Audit Log
+        audit = AuditLog(
+            user_email=current_user.email,
+            action="PO_CREATE",
+            entity="PURCHASE_ORDER",
+            entity_id=str(po.po_id),
+            new_state=f"Created PO {po.po_number} for {qty} units (Pending Approval)"
+        )
+        db.add(audit)
+
     db.commit()
+
+    message = (
+        f"Purchase order {po.po_number} approved! {qty} units credited to stock (New Stock: {new_stock}) and critical risk resolved."
+        if payload.auto_approve
+        else f"Purchase order {po.po_number} created successfully and submitted for approval."
+    )
 
     return POActionResponse(
         success=True,
-        message=f"Purchase order {po.po_number} created successfully and submitted for approval.",
+        message=message,
         po_id=po.po_id,
         po_number=po.po_number,
-        status="PENDING"
+        status=initial_status,
+        new_stock=new_stock
     )
 
 @router.post("/{po_id}/approve", response_model=POActionResponse)
@@ -216,6 +286,7 @@ def approve_purchase_order(
         prev_qty = float(inv.current_stock)
         new_qty = prev_qty + qty
         inv.current_stock = new_qty
+        inv.last_updated = datetime.now(timezone.utc)
 
     # Add ledger transaction
     tx = InventoryTransaction(
@@ -258,7 +329,8 @@ def approve_purchase_order(
         message=f"Purchase order {po.po_number} approved! {qty} units reflected in stock (New Stock: {new_qty}) and removed from Critical Risk section.",
         po_id=po.po_id,
         po_number=po.po_number or f"PO-2026-{po.po_id:04d}",
-        status="APPROVED"
+        status="APPROVED",
+        new_stock=new_qty
     )
 
 @router.post("/{po_id}/send", response_model=POActionResponse)

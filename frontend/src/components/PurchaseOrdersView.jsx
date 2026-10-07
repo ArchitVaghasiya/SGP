@@ -12,7 +12,8 @@ import {
   ArrowRight,
   Filter,
   Check,
-  ChevronRight
+  ChevronRight,
+  Zap
 } from 'lucide-react';
 import { Badge } from './ui/StatCard';
 import { Modal, Drawer, SkeletonLoader, EmptyState, Pagination } from './ui/ModalsAndLoaders';
@@ -93,23 +94,66 @@ export function PurchaseOrdersView({
     fetchOrders();
   }, [activeTab, selectedStore, page]);
 
-  const handleCreatePO = async (e) => {
-    e.preventDefault();
+  const handleCreatePO = async (e, autoApprove = false) => {
+    if (e) e.preventDefault();
     setActionLoading(true);
+    const storeId = Number(createForm.store_id);
+    const productId = Number(createForm.product_id);
+    const orderQty = Number(createForm.order_quantity);
+    const unitCost = Number(createForm.unit_cost) || 12.0;
+    const totalCost = orderQty * unitCost;
+
+    const prod = productsList.find(p => p.product_id === productId);
+    const prodName = prod?.name || `Product #${productId}`;
+
     try {
       const res = await api.createPurchaseOrder({
-        store_id: Number(createForm.store_id),
-        product_id: Number(createForm.product_id),
-        order_quantity: Number(createForm.order_quantity),
-        unit_cost: Number(createForm.unit_cost) || 12.0
+        store_id: storeId,
+        product_id: productId,
+        order_quantity: orderQty,
+        unit_cost: unitCost,
+        auto_approve: autoApprove
       });
+
+      const newPoItem = {
+        po_id: res.po_id,
+        po_number: res.po_number,
+        store_id: storeId,
+        store_name: `Store #${storeId}`,
+        product_id: productId,
+        product_name: prodName,
+        category: prodName,
+        supplier_id: 1,
+        supplier_name: "Pichincha Foods Ltd.",
+        order_quantity: orderQty,
+        unit_cost: unitCost,
+        total_cost: totalCost,
+        current_stock: res.new_stock || 100,
+        safety_buffer: 50,
+        predicted_demand_7d: 75,
+        status: res.status || (autoApprove ? "APPROVED" : "PENDING"),
+        expected_delivery_date: "Standard (5d)",
+        created_by: currentUser?.full_name || "Specialist",
+        created_at: new Date().toISOString()
+      };
+
+      // Optimistic update
+      setOrders(prev => [newPoItem, ...prev]);
+      setStatusCounts(prev => ({
+        ...prev,
+        ALL: (prev.ALL || 0) + 1,
+        [newPoItem.status]: (prev[newPoItem.status] || 0) + 1
+      }));
+      setTotal(prev => prev + 1);
+
       setNotification({
-        message: res.message || 'Purchase order submitted successfully and pending approval!',
+        message: res.message || (autoApprove ? `Purchase order ${res.po_number} created and approved! Stock credited to PostgreSQL DB.` : `Purchase order ${res.po_number} submitted!`),
         type: 'success'
       });
       setIsCreateModalOpen(false);
-      setActiveTab('PENDING');
-      fetchOrders();
+      setActiveTab(autoApprove ? 'APPROVED' : 'PENDING');
+      
+      setTimeout(fetchOrders, 800);
     } catch (err) {
       setNotification({
         message: `Failed to request purchase order: ${err.message}`,
@@ -121,54 +165,87 @@ export function PurchaseOrdersView({
   };
 
   const handleApprove = async (poId) => {
+    // Optimistic UI update
+    setOrders(prev => prev.map(o => o.po_id === poId ? { ...o, status: 'APPROVED' } : o));
+    setStatusCounts(prev => ({
+      ...prev,
+      PENDING: Math.max(0, (prev.PENDING || 1) - 1),
+      APPROVED: (prev.APPROVED || 0) + 1
+    }));
     setActionLoading(true);
+
     try {
       const res = await api.approvePurchaseOrder(poId);
       setNotification({
         message: res.message || 'Purchase order approved! Quantity reflected in inventory and critical risk resolved.',
         type: 'success'
       });
-      fetchOrders();
-      if (selectedPO) setIsDetailOpen(false);
+      if (selectedPO && selectedPO.po_id === poId) {
+        setSelectedPO(prev => ({ ...prev, status: 'APPROVED' }));
+      }
+      setTimeout(fetchOrders, 800);
     } catch (err) {
       setNotification({
         message: `Approval error: ${err.message}`,
         type: 'error'
       });
+      fetchOrders();
     } finally {
       setActionLoading(false);
     }
   };
 
   const handleSend = async (poId) => {
+    // Optimistic UI update
+    setOrders(prev => prev.map(o => o.po_id === poId ? { ...o, status: 'SENT' } : o));
+    setStatusCounts(prev => ({
+      ...prev,
+      APPROVED: Math.max(0, (prev.APPROVED || 1) - 1),
+      SENT: (prev.SENT || 0) + 1
+    }));
     setActionLoading(true);
+
     try {
       const res = await api.sendPurchaseOrder(poId);
       setNotification({
         message: res.message || 'Order transmitted to supplier EDI gateway!',
         type: 'success'
       });
-      fetchOrders();
-      if (selectedPO) setIsDetailOpen(false);
+      if (selectedPO && selectedPO.po_id === poId) {
+        setSelectedPO(prev => ({ ...prev, status: 'SENT' }));
+      }
+      setTimeout(fetchOrders, 800);
     } catch (err) {
       setNotification({ message: `Transmission error: ${err.message}`, type: 'error' });
+      fetchOrders();
     } finally {
       setActionLoading(false);
     }
   };
 
   const handleReceive = async (poId) => {
+    // Optimistic UI update
+    setOrders(prev => prev.map(o => o.po_id === poId ? { ...o, status: 'RECEIVED' } : o));
+    setStatusCounts(prev => ({
+      ...prev,
+      SENT: Math.max(0, (prev.SENT || 1) - 1),
+      RECEIVED: (prev.RECEIVED || 0) + 1
+    }));
     setActionLoading(true);
+
     try {
       const res = await api.receivePurchaseOrder(poId);
       setNotification({
         message: res.message || 'Inventory received and updated in database ledger!',
         type: 'success'
       });
-      fetchOrders();
-      if (selectedPO) setIsDetailOpen(false);
+      if (selectedPO && selectedPO.po_id === poId) {
+        setSelectedPO(prev => ({ ...prev, status: 'RECEIVED' }));
+      }
+      setTimeout(fetchOrders, 800);
     } catch (err) {
       setNotification({ message: `Receiving error: ${err.message}`, type: 'error' });
+      fetchOrders();
     } finally {
       setActionLoading(false);
     }
@@ -176,17 +253,22 @@ export function PurchaseOrdersView({
 
   const handleCancel = async (poId) => {
     if (!window.confirm("Are you sure you want to cancel this purchase order?")) return;
+    setOrders(prev => prev.map(o => o.po_id === poId ? { ...o, status: 'CANCELLED' } : o));
     setActionLoading(true);
+
     try {
       const res = await api.cancelPurchaseOrder(poId);
       setNotification({
         message: res.message || 'Purchase order cancelled.',
         type: 'info'
       });
-      fetchOrders();
-      if (selectedPO) setIsDetailOpen(false);
+      if (selectedPO && selectedPO.po_id === poId) {
+        setSelectedPO(prev => ({ ...prev, status: 'CANCELLED' }));
+      }
+      setTimeout(fetchOrders, 800);
     } catch (err) {
       setNotification({ message: `Cancellation error: ${err.message}`, type: 'error' });
+      fetchOrders();
     } finally {
       setActionLoading(false);
     }
@@ -657,22 +739,47 @@ export function PurchaseOrdersView({
               </span>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '10px' }}>
               <button
                 type="button"
-                className="btn btn-secondary"
-                onClick={() => setIsCreateModalOpen(false)}
-                disabled={actionLoading}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
                 className="btn btn-primary"
+                style={{
+                  background: 'linear-gradient(135deg, #6366f1 0%, #06b6d4 100%)',
+                  boxShadow: '0 4px 14px rgba(99, 102, 241, 0.35)',
+                  padding: '12px',
+                  fontWeight: 700,
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
                 disabled={actionLoading}
+                onClick={(e) => handleCreatePO(e, true)}
               >
-                {actionLoading ? 'Submitting...' : 'Submit Request'}
+                <Zap size={16} />
+                {actionLoading ? 'Processing...' : '⚡ Create & Instant Approve (Credit Stock to DB)'}
               </button>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setIsCreateModalOpen(false)}
+                  disabled={actionLoading}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                  disabled={actionLoading}
+                  onClick={(e) => handleCreatePO(e, false)}
+                >
+                  <ShoppingCart size={15} />
+                  Submit Request (Pending Approval)
+                </button>
+              </div>
             </div>
           </form>
         </Modal>

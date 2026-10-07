@@ -6,10 +6,12 @@ import {
   CheckCheck,
   Filter,
   RefreshCw,
-  Clock
+  Clock,
+  Zap
 } from 'lucide-react';
 import { Badge } from './ui/StatCard';
 import { SkeletonLoader, EmptyState, Pagination } from './ui/ModalsAndLoaders';
+import { QuickRestockModal } from './QuickRestockModal';
 import api from '../api';
 
 export function AlertsView({ selectedStore, onNavigate, onSelectSku }) {
@@ -22,6 +24,8 @@ export function AlertsView({ selectedStore, onNavigate, onSelectSku }) {
   const [error, setError] = useState(null);
   const [page, setPage] = useState(1);
   const limit = 25;
+  const [quickRestockTarget, setQuickRestockTarget] = useState(null);
+  const [notification, setNotification] = useState(null);
 
   const fetchAlerts = async () => {
     setIsLoading(true);
@@ -82,8 +86,57 @@ export function AlertsView({ selectedStore, onNavigate, onSelectSku }) {
     }
   };
 
+  const handleRestockSuccess = (result) => {
+    // Resolve all alerts for this store and product in the current list
+    setAlerts(prev => prev.map(al => {
+      if (al.store_id === result.store_id && al.product_id === result.product_id) {
+        return { ...al, status: 'RESOLVED' };
+      }
+      return al;
+    }));
+
+    setNotification({
+      message: result.message || `Restock order approved! Stock credited and critical alert resolved.`,
+      type: 'success'
+    });
+
+    // Background refresh
+    setTimeout(() => {
+      fetchAlerts();
+    }, 1200);
+  };
+
   return (
     <div className="page-wrapper">
+      {/* Toast Notification */}
+      {notification && (
+        <div style={{
+          marginBottom: '18px',
+          padding: '14px 18px',
+          borderRadius: 'var(--radius-md)',
+          background: notification.type === 'success' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(244, 63, 94, 0.15)',
+          border: `1px solid ${notification.type === 'success' ? 'var(--color-success)' : 'var(--color-danger)'}`,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          animation: 'fadeIn 0.3s ease-in-out'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <CheckCircle2 size={18} color="var(--color-success)" />
+            <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
+              {notification.message}
+            </span>
+          </div>
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => setNotification(null)}
+            style={{ padding: '2px 8px', fontSize: '12px' }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
@@ -214,13 +267,43 @@ export function AlertsView({ selectedStore, onNavigate, onSelectSku }) {
                         {al.message}
                       </td>
                       <td>
-                        <span className="badge badge-neutral">{al.status}</span>
+                        <span className={`badge ${al.status === 'RESOLVED' ? 'badge-healthy' : 'badge-neutral'}`}>
+                          {al.status}
+                        </span>
                       </td>
                       <td style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
                         {new Date(al.created_at).toLocaleString()}
                       </td>
                       <td style={{ textAlign: 'right' }}>
-                        <div style={{ display: 'inline-flex', gap: '6px' }}>
+                        <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center' }}>
+                          {/* 1-Click Direct Restock Button */}
+                          {al.status !== 'RESOLVED' && al.product_id && (
+                            <button
+                              className="btn btn-sm"
+                              style={{
+                                background: 'linear-gradient(135deg, #6366f1 0%, #06b6d4 100%)',
+                                color: '#fff',
+                                fontWeight: 700,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                padding: '4px 10px',
+                                borderRadius: 'var(--radius-sm)'
+                              }}
+                              onClick={() => setQuickRestockTarget({
+                                store_id: al.store_id,
+                                product_id: al.product_id,
+                                product_name: al.product_name,
+                                sku: al.sku,
+                                current_stock: 10,
+                                safety_buffer: 50
+                              })}
+                              title="Restock SKU & Resolve Alert"
+                            >
+                              <Zap size={13} /> Restock
+                            </button>
+                          )}
+
                           {al.status === 'UNREAD' && (
                             <button
                               className="btn btn-secondary btn-sm"
@@ -231,7 +314,7 @@ export function AlertsView({ selectedStore, onNavigate, onSelectSku }) {
                           )}
                           {al.status !== 'RESOLVED' && (
                             <button
-                              className="btn btn-primary btn-sm"
+                              className="btn btn-ghost btn-sm"
                               onClick={() => handleResolve(al.id)}
                             >
                               Resolve
@@ -255,6 +338,16 @@ export function AlertsView({ selectedStore, onNavigate, onSelectSku }) {
           </>
         )}
       </div>
+
+      {/* Quick Restock Modal */}
+      {quickRestockTarget && (
+        <QuickRestockModal
+          isOpen={Boolean(quickRestockTarget)}
+          onClose={() => setQuickRestockTarget(null)}
+          item={quickRestockTarget}
+          onSuccess={handleRestockSuccess}
+        />
+      )}
     </div>
   );
 }

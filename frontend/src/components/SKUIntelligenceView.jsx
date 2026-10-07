@@ -12,12 +12,14 @@ import {
   Sparkles,
   SlidersHorizontal,
   RefreshCw,
-  AlertTriangle
+  AlertTriangle,
+  Zap
 } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, Legend, Line, ComposedChart } from 'recharts';
 import { StatCard, Badge } from './ui/StatCard';
 import { SkeletonLoader, EmptyState } from './ui/ModalsAndLoaders';
 import { StockAdjustmentModal } from './StockAdjustmentModal';
+import { QuickRestockModal } from './QuickRestockModal';
 import api from '../api';
 
 export function SKUIntelligenceView({
@@ -33,6 +35,7 @@ export function SKUIntelligenceView({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isAdjustModalOpen, setIsAdjustModalOpen] = useState(false);
+  const [isQuickRestockOpen, setIsQuickRestockOpen] = useState(false);
   const [restockSubmitting, setRestockSubmitting] = useState(false);
   const [skuFeedback, setSkuFeedback] = useState(null);
 
@@ -331,21 +334,39 @@ export function SKUIntelligenceView({
               {forecastSeries?.explanation || `Demand trajectory indicates inventory will reach safety boundary in ${daysRemVal} days. Replenishment lead time is ${leadTimeVal} days.`}
             </p>
 
-            <div style={{ display: 'flex', gap: '8px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <button 
                 className="btn btn-primary btn-sm"
-                style={{ flex: 1 }}
-                disabled={restockSubmitting}
-                onClick={handleQuickRestock}
+                style={{
+                  background: 'linear-gradient(135deg, #6366f1 0%, #06b6d4 100%)',
+                  boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)',
+                  fontWeight: 700,
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+                onClick={() => setIsQuickRestockOpen(true)}
               >
-                <ShoppingCart size={14} /> {restockSubmitting ? 'Submitting...' : 'Request Restock'}
+                <Zap size={14} /> ⚡ Direct Restock & Instant Approve
               </button>
-              <button 
-                className="btn btn-secondary btn-sm"
-                onClick={() => onNavigate?.('purchase-orders')}
-              >
-                Procurement Pipeline
-              </button>
+
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button 
+                  className="btn btn-secondary btn-sm"
+                  style={{ flex: 1 }}
+                  disabled={restockSubmitting}
+                  onClick={handleQuickRestock}
+                >
+                  <ShoppingCart size={14} /> {restockSubmitting ? 'Submitting...' : 'Request PO (Pending)'}
+                </button>
+                <button 
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => onNavigate?.('purchase-orders')}
+                >
+                  PO Pipeline
+                </button>
+              </div>
             </div>
           </div>
 
@@ -451,6 +472,31 @@ export function SKUIntelligenceView({
           currentStock={currentStockVal}
           onSuccess={() => {
             setIsAdjustModalOpen(false);
+            fetchDetail();
+          }}
+        />
+      )}
+
+      {/* Quick Restock Modal */}
+      {isQuickRestockOpen && (
+        <QuickRestockModal
+          isOpen={isQuickRestockOpen}
+          onClose={() => setIsQuickRestockOpen(false)}
+          item={{
+            store_id: storeId,
+            product_id: productId,
+            product_name: prodName,
+            sku: skuLabel,
+            current_stock: currentStockVal,
+            safety_buffer: safetyBufferVal,
+            unit_price: unitPriceVal,
+            lead_time_days: leadTimeVal
+          }}
+          onSuccess={(result) => {
+            setSkuFeedback({
+              message: result.message || `Stock credited (+${result.addedQty} units)! Updated to ${result.newStock} units in database.`,
+              type: 'success'
+            });
             fetchDetail();
           }}
         />

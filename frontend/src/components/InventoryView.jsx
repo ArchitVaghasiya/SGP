@@ -8,11 +8,15 @@ import {
   AlertTriangle,
   ArrowUpDown,
   ChevronRight,
-  Sliders
+  Sliders,
+  Zap,
+  CheckCircle2,
+  PackagePlus
 } from 'lucide-react';
 import { Badge } from './ui/StatCard';
 import { SkeletonLoader, EmptyState, Pagination } from './ui/ModalsAndLoaders';
 import { StockAdjustmentModal } from './StockAdjustmentModal';
+import { QuickRestockModal } from './QuickRestockModal';
 import api from '../api';
 
 export function InventoryView({
@@ -33,6 +37,8 @@ export function InventoryView({
 
   const [categories, setCategories] = useState([]);
   const [adjustmentTarget, setAdjustmentTarget] = useState(null);
+  const [quickRestockTarget, setQuickRestockTarget] = useState(null);
+  const [notification, setNotification] = useState(null);
 
   const fetchInventory = async () => {
     setIsLoading(true);
@@ -97,8 +103,70 @@ export function InventoryView({
     { id: 'OVERSTOCK', label: 'Overstock' }
   ];
 
+  const handleRestockSuccess = (result) => {
+    // Optimistically update item in table
+    setItems(prevItems => prevItems.map(it => {
+      if (it.store_id === result.store_id && it.product_id === result.product_id) {
+        const updatedStock = result.newStock;
+        const sBuff = it.safety_buffer;
+        let newStatus = 'HEALTHY';
+        if (updatedStock <= 0) newStatus = 'STOCKOUT';
+        else if (updatedStock < sBuff) newStatus = 'CRITICAL';
+        else if (updatedStock < sBuff * 1.5) newStatus = 'LOW_STOCK';
+        
+        return {
+          ...it,
+          current_stock: updatedStock,
+          status: newStatus,
+          risk_level: newStatus,
+          inventory_value: Math.round(updatedStock * it.unit_price)
+        };
+      }
+      return it;
+    }));
+
+    setNotification({
+      message: result.message || `Restock order completed! Stock updated to ${result.newStock} units in PostgreSQL database.`,
+      type: 'success'
+    });
+
+    // Background sync
+    setTimeout(() => {
+      fetchInventory();
+    }, 1200);
+  };
+
   return (
     <div className="page-wrapper">
+      {/* Toast Notification Banner */}
+      {notification && (
+        <div style={{
+          marginBottom: '18px',
+          padding: '14px 18px',
+          borderRadius: 'var(--radius-md)',
+          background: notification.type === 'success' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(244, 63, 94, 0.15)',
+          border: `1px solid ${notification.type === 'success' ? 'var(--color-success)' : 'var(--color-danger)'}`,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          animation: 'fadeIn 0.3s ease-in-out'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <CheckCircle2 size={18} color={notification.type === 'success' ? 'var(--color-success)' : 'var(--color-danger)'} />
+            <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
+              {notification.message}
+            </span>
+          </div>
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => setNotification(null)}
+            style={{ padding: '2px 8px', fontSize: '12px' }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
@@ -218,40 +286,69 @@ export function InventoryView({
                   </tr>
                 </thead>
                 <tbody>
-                  {items.map((item) => (
-                    <tr
-                      key={`${item.store_id}-${item.product_id}`}
-                      style={{ cursor: 'pointer' }}
-                      onClick={() => onSelectSku?.(item.store_id, item.product_id)}
-                    >
-                      <td className="font-mono" style={{ fontWeight: 700, color: 'var(--accent-primary)' }}>
-                        {item.sku}
-                      </td>
-                      <td style={{ fontWeight: 600 }}>{item.product_name}</td>
-                      <td>Store #{item.store_id}</td>
-                      <td style={{ fontWeight: 700 }}>{item.current_stock}</td>
-                      <td>{item.safety_buffer}</td>
-                      <td>{item.lead_time_days} days</td>
-                      <td>${item.unit_price?.toFixed(2)}</td>
-                      <td style={{ fontWeight: 600 }}>${item.inventory_value?.toLocaleString()}</td>
-                      <td>
-                        <Badge variant={item.risk_level || item.status || 'HEALTHY'}>
-                          {item.risk_level || item.status || 'HEALTHY'}
-                        </Badge>
-                      </td>
-                      <td style={{ textAlign: 'right' }}>
-                        <button
-                          className="btn btn-ghost btn-sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setAdjustmentTarget(item);
-                          }}
-                        >
-                          Adjust
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {items.map((item) => {
+                    const isCritical = ['CRITICAL', 'LOW_STOCK', 'STOCKOUT'].includes(item.risk_level || item.status);
+                    return (
+                      <tr
+                        key={`${item.store_id}-${item.product_id}`}
+                        style={{
+                          cursor: 'pointer',
+                          background: item.risk_level === 'CRITICAL' ? 'rgba(244, 63, 94, 0.04)' : undefined
+                        }}
+                        onClick={() => onSelectSku?.(item.store_id, item.product_id)}
+                      >
+                        <td className="font-mono" style={{ fontWeight: 700, color: 'var(--accent-primary)' }}>
+                          {item.sku}
+                        </td>
+                        <td style={{ fontWeight: 600 }}>{item.product_name}</td>
+                        <td>Store #{item.store_id}</td>
+                        <td style={{ fontWeight: 700, color: isCritical ? 'var(--color-danger)' : 'var(--text-primary)' }}>
+                          {item.current_stock}
+                        </td>
+                        <td>{item.safety_buffer}</td>
+                        <td>{item.lead_time_days} days</td>
+                        <td>${item.unit_price?.toFixed(2)}</td>
+                        <td style={{ fontWeight: 600 }}>${item.inventory_value?.toLocaleString()}</td>
+                        <td>
+                          <Badge variant={item.risk_level || item.status || 'HEALTHY'}>
+                            {item.risk_level || item.status || 'HEALTHY'}
+                          </Badge>
+                        </td>
+                        <td style={{ textAlign: 'right' }} onClick={(e) => e.stopPropagation()}>
+                          <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center' }}>
+                            {/* Direct 1-Click Quick Restock Button */}
+                            <button
+                              className="btn btn-sm"
+                              style={{
+                                background: isCritical ? 'linear-gradient(135deg, #f43f5e 0%, #e11d48 100%)' : 'var(--accent-primary-subtle)',
+                                color: isCritical ? '#fff' : 'var(--accent-primary)',
+                                border: isCritical ? 'none' : '1px solid var(--accent-primary)',
+                                fontWeight: 700,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                padding: '4px 10px',
+                                borderRadius: 'var(--radius-sm)',
+                                boxShadow: isCritical ? '0 2px 8px rgba(244, 63, 94, 0.3)' : 'none'
+                              }}
+                              onClick={() => setQuickRestockTarget(item)}
+                              title="Request Restock & Generate PO"
+                            >
+                              <Zap size={13} />
+                              {isCritical ? 'Restock' : 'Order PO'}
+                            </button>
+
+                            <button
+                              className="btn btn-ghost btn-sm"
+                              onClick={() => setAdjustmentTarget(item)}
+                            >
+                              Adjust
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -280,6 +377,16 @@ export function InventoryView({
             setAdjustmentTarget(null);
             fetchInventory();
           }}
+        />
+      )}
+
+      {/* 1-Click Direct Quick Restock Modal */}
+      {quickRestockTarget && (
+        <QuickRestockModal
+          isOpen={Boolean(quickRestockTarget)}
+          onClose={() => setQuickRestockTarget(null)}
+          item={quickRestockTarget}
+          onSuccess={handleRestockSuccess}
         />
       )}
     </div>
